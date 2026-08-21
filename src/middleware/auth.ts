@@ -43,7 +43,7 @@ export const authenticate = async (req: AuthRequest, _res: Response, next: NextF
       userId: decoded.userId,
       tenantId: decoded.tenantId,
       role: decoded.role,
-      permissions: decoded.permissions,
+      permissions: decoded.permissions || [],
       name: user.name,
     };
 

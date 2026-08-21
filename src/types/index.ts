@@ -1,5 +1,5 @@
 // ============================================================
-// MAHALLU ERP — Shared Types & Interfaces
+// MAHALLU ERP — Backend Types & Interfaces
 // ============================================================
 
 // ---- Enums / Const Objects (Node 24 Strip-Types Compatible) ----
@@ -161,35 +161,42 @@ export interface ITenant extends BaseDocument {
   name: string;
   nameAr?: string;
   nameML?: string;
-  code: string;
+  code?: string;
+  mahalluCode?: string;
   domain?: string;
-  address: Address;
+  address: Address | any;
   phone: string;
   email: string;
-  logo?: FileAttachment;
-  banner?: FileAttachment;
-  settings: TenantSettings;
-  subscriptionPlan: 'free' | 'basic' | 'pro' | 'enterprise';
+  logo?: FileAttachment | string;
+  banner?: FileAttachment | string;
+  plan?: 'free' | 'basic' | 'premium' | string;
+  settings: TenantSettings | any;
+  subscriptionPlan?: 'free' | 'basic' | 'pro' | 'enterprise' | string;
   subscriptionExpiresAt?: string;
-  status: 'active' | 'suspended' | 'pending';
+  status?: 'active' | 'suspended' | 'pending';
+  isActive?: boolean;
 }
 
 export interface TenantSettings {
-  currency: string;
-  timezone: string;
-  language: Language;
-  financialYearStartMonth: number;
-  paymentGateways: {
+  currency?: string;
+  timezone?: string;
+  language?: Language | string;
+  dateFormat?: string;
+  theme?: string;
+  prayerTimeMethod?: string;
+  iqamahTimes?: Map<string, string> | Record<string, string>;
+  financialYearStartMonth?: number;
+  paymentGateways?: {
     razorpay?: { keyId: string; enabled: boolean };
     upi?: { upiId: string; enabled: boolean };
   };
-  features: {
-    zakatCalculator: boolean;
-    whatsappNotifications: boolean;
-    smsNotifications: boolean;
-    cemeteryManagement: boolean;
-    propertyRental: boolean;
-    madrasaPortal: boolean;
+  features?: {
+    zakatCalculator?: boolean;
+    whatsappNotifications?: boolean;
+    smsNotifications?: boolean;
+    cemeteryManagement?: boolean;
+    propertyRental?: boolean;
+    madrasaPortal?: boolean;
   };
 }
 
@@ -201,12 +208,17 @@ export interface IUser extends BaseDocument {
   name: string;
   role: UserRole;
   memberId?: string;
-  avatar?: FileAttachment;
-  isEmailVerified: boolean;
-  isPhoneVerified: boolean;
-  twoFactorEnabled: boolean;
-  lastLoginAt?: string;
-  status: 'active' | 'inactive' | 'locked';
+  avatar?: FileAttachment | string;
+  isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  fcmToken?: string;
+  refreshTokens?: string[];
+  permissions?: string[];
+  isActive?: boolean;
+  lastLoginAt?: string | Date;
+  status?: 'active' | 'inactive' | 'locked';
 }
 
 export interface AuthTokens {
@@ -219,6 +231,33 @@ export interface LoginResponse {
   user: IUser;
   tokens: AuthTokens;
   permissions: string[];
+}
+
+export interface JwtPayload {
+  userId: string;
+  email?: string;
+  role: UserRole;
+  tenantId: string;
+  memberId?: string;
+  permissions?: string[];
+  iat?: number;
+  exp?: number;
+}
+
+export interface IAuditLog extends BaseDocument {
+  userId?: string;
+  userName?: string;
+  userRole?: string;
+  action: string;
+  resource?: string;
+  entity?: string;
+  entityId?: string;
+  changes?: any;
+  ip?: string;
+  resourceId?: string;
+  details?: Record<string, unknown>;
+  ipAddress?: string;
+  userAgent?: string;
 }
 
 // ---- Family & Member ----

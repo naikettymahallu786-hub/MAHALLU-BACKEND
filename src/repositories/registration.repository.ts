@@ -7,6 +7,10 @@ import { Student } from '../models/Student';
 import { Teacher } from '../models/Teacher';
 
 export class RegistrationRepository {
+  static async findFirstActiveTenant() {
+    return Tenant.findOne({ isDeleted: { $ne: true } }).sort({ createdAt: 1 });
+  }
+
   static async findTenantByMahalluCode(mahalluCode: string) {
     return Tenant.findOne({ mahalluCode });
   }

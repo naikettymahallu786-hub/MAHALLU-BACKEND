@@ -3,7 +3,10 @@ import { logger } from './logger';
 import '../models';
 
 export async function connectDB(): Promise<void> {
-  const uri = process.env.MONGODB_URI || process.env.MONGODB_URI_LOCAL || 'mongodb://localhost:27017/mahallu-erp';
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI is not defined in environment variables. Remote database is required.');
+  }
 
   mongoose.set('strictQuery', false);
 
@@ -21,11 +24,11 @@ export async function connectDB(): Promise<void> {
   try {
     const conn = await mongoose.connect(uri, {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
     });
 
-    logger.info(`✅ MongoDB connected: ${conn.connection.host}`);
+    logger.info(`✅ Remote Cloud MongoDB connected: ${conn.connection.host}`);
 
     mongoose.connection.on('error', (err) => {
       logger.error('MongoDB connection error:', err);
@@ -36,19 +39,7 @@ export async function connectDB(): Promise<void> {
     });
 
   } catch (error) {
-    logger.error('Primary MongoDB connection failed. Trying local fallback...', error);
-    if (process.env.MONGODB_URI_LOCAL && uri !== process.env.MONGODB_URI_LOCAL) {
-      try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI_LOCAL, {
-          maxPoolSize: 10,
-          serverSelectionTimeoutMS: 5000,
-        });
-        logger.info(`✅ Local MongoDB connected fallback: ${conn.connection.host}`);
-        return;
-      } catch (localErr) {
-        logger.error('Local MongoDB fallback also failed:', localErr);
-      }
-    }
+    logger.error('Failed to connect to remote MongoDB:', error);
     throw error;
   }
 }

@@ -38,11 +38,17 @@ export class AuthService {
 
     // Find tenant
     let tenantId: string | undefined;
-    if (tenantCode) {
+    if (tenantCode && tenantCode.trim()) {
       const cleanTenantCode = tenantCode.trim().toUpperCase();
       const tenant = await AuthRepository.findActiveTenantByMahalluCode(cleanTenantCode);
       if (!tenant) throw new AppError('Mahallu not found or inactive', 404);
       tenantId = tenant._id.toString();
+    } else {
+      // Single Mahallu default: auto-resolve the primary active tenant
+      const defaultTenant = await AuthRepository.findFirstActiveTenant();
+      if (defaultTenant) {
+        tenantId = defaultTenant._id.toString();
+      }
     }
 
     let user: UserDocument | null = null;
@@ -63,7 +69,7 @@ export class AuthService {
 
     // Auto-provision demo accounts if missing on database
     if (!user && (emailLower === 'madrasa.admin@mahallu.app' || emailLower === 'sadar@mahallu.app' || emailLower === 'admin@mahallu.app')) {
-      let tenantDoc = await AuthRepository.findTenantByMahalluCode(tenantCode ? tenantCode.trim().toUpperCase() : 'JMM001');
+      let tenantDoc = tenantCode ? await AuthRepository.findTenantByMahalluCode(tenantCode.trim().toUpperCase()) : await AuthRepository.findFirstActiveTenant();
       if (!tenantDoc) {
         tenantDoc = await AuthRepository.createTenant({
           name: 'Jamia Masjid Mahallu',
@@ -74,7 +80,7 @@ export class AuthService {
         });
       }
 
-      let roleToAssign = UserRole.SUPER_ADMIN;
+      let roleToAssign: UserRole = UserRole.SUPER_ADMIN;
       let nameToAssign = 'System Administrator';
       let defaultPass = 'Admin@123456';
 
@@ -409,15 +415,18 @@ export class AuthService {
   }
 
   static async forgotPassword(
-    tenantCode: string,
-    identifier: string,
+    tenantCode?: string,
+    identifier?: string,
   ): Promise<{ message: string; data?: { otp: string; expiresAt: Date } }> {
-    if (!tenantCode || !identifier) {
-      throw new AppError('Mahallu Code and Email/Phone are required', 400);
+    if (!identifier) {
+      throw new AppError('Email or Phone is required', 400);
     }
 
-    const tenant = await AuthRepository.findActiveTenantByCode(tenantCode.trim().toUpperCase());
-    if (!tenant) throw new AppError('Invalid Mahallu Code', 404);
+    let tenant = tenantCode && tenantCode.trim() ? await AuthRepository.findActiveTenantByCode(tenantCode.trim().toUpperCase()) : null;
+    if (!tenant) {
+      tenant = await AuthRepository.findFirstActiveTenant();
+    }
+    if (!tenant) throw new AppError('Mahallu not found or inactive', 404);
 
     const cleanIdentifier = identifier.trim().toLowerCase();
     const user = await AuthRepository.findActiveUserByIdentifierWithOTPFields(tenant._id.toString(), cleanIdentifier);
@@ -442,21 +451,24 @@ export class AuthService {
   }
 
   static async resetPassword(
-    tenantCode: string,
+    tenantCode: string | undefined,
     identifier: string,
     otp: string,
     newPassword: string,
   ): Promise<void> {
-    if (!tenantCode || !identifier || !otp || !newPassword) {
-      throw new AppError('All fields are required (tenantCode, identifier, otp, newPassword)', 400);
+    if (!identifier || !otp || !newPassword) {
+      throw new AppError('All fields are required (identifier, otp, newPassword)', 400);
     }
 
     if (newPassword.length < 6) {
       throw new AppError('Password must be at least 6 characters long', 400);
     }
 
-    const tenant = await AuthRepository.findActiveTenantByCode(tenantCode.trim().toUpperCase());
-    if (!tenant) throw new AppError('Invalid Mahallu Code', 404);
+    let tenant = tenantCode && tenantCode.trim() ? await AuthRepository.findActiveTenantByCode(tenantCode.trim().toUpperCase()) : null;
+    if (!tenant) {
+      tenant = await AuthRepository.findFirstActiveTenant();
+    }
+    if (!tenant) throw new AppError('Mahallu not found or inactive', 404);
 
     const cleanIdentifier = identifier.trim().toLowerCase();
     const user = await AuthRepository.findActiveUserByIdentifierWithResetFields(tenant._id.toString(), cleanIdentifier);

@@ -1,4 +1,4 @@
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from '../types';
 
 // ============================================================
 // RBAC Permission Matrix

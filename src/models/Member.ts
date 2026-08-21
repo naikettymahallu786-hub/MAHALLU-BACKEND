@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { IMember, Gender, MemberStatus } from '@mahallu/shared-types';
+import { IMember, Gender, MemberStatus } from '../types';
 
 export interface MemberDocument extends Omit<IMember, '_id' | 'tenantId' | 'familyId' | 'userId' | 'dateOfBirth'>, Document {
   tenantId: mongoose.Types.ObjectId;

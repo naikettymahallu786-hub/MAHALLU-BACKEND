@@ -19,14 +19,17 @@ function generateId(prefix: string) {
 }
 
 export class RegistrationService {
-  static async submitRegistration(mahalluCode: string, type: string, payload: Record<string, any>) {
-    if (!mahalluCode || !type || !payload) {
-      throw new AppError('Missing required fields', 400);
+  static async submitRegistration(mahalluCode: string | undefined, type: string, payload: Record<string, any>) {
+    if (!type || !payload) {
+      throw new AppError('Missing required fields (type, payload)', 400);
     }
 
-    const tenant = await RegistrationRepository.findTenantByMahalluCode(mahalluCode.toUpperCase());
+    let tenant = mahalluCode && mahalluCode.trim() ? await RegistrationRepository.findTenantByMahalluCode(mahalluCode.trim().toUpperCase()) : null;
     if (!tenant) {
-      throw new AppError('Invalid Mahallu Code', 404);
+      tenant = await RegistrationRepository.findFirstActiveTenant();
+    }
+    if (!tenant) {
+      throw new AppError('Mahallu not found or inactive', 404);
     }
 
     return RegistrationRepository.createRegistrationRequest({
@@ -36,11 +39,15 @@ export class RegistrationService {
     });
   }
 
-  static async getFamiliesForRegistration(mahalluCode: string) {
-    if (!mahalluCode) throw new AppError('Mahallu code is required', 400);
+  static async getFamiliesForRegistration(mahalluCode?: string) {
+    let tenant = (mahalluCode && mahalluCode.trim() && mahalluCode !== 'default')
+      ? await RegistrationRepository.findTenantByMahalluCode(mahalluCode.trim().toUpperCase())
+      : null;
 
-    const tenant = await RegistrationRepository.findTenantByMahalluCode(mahalluCode.toUpperCase());
-    if (!tenant) throw new AppError('Invalid Mahallu Code', 404);
+    if (!tenant) {
+      tenant = await RegistrationRepository.findFirstActiveTenant();
+    }
+    if (!tenant) throw new AppError('Mahallu not found or inactive', 404);
 
     const families = await RegistrationRepository.findFamiliesByTenant(tenant._id.toString());
 
@@ -92,7 +99,7 @@ export class RegistrationService {
       qualification: payload.qualification,
     });
 
-    let role = UserRole.STUDENT;
+    let role: UserRole = UserRole.STUDENT;
 
     // 2. Handle Specific Role Logic
     if (type === RegistrationType.MEMBER) {

@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import { Readable } from 'stream';
-import { UserRole, MemberStatus, Gender } from '@mahallu/shared-types';
+import { UserRole, MemberStatus, Gender } from '../types';
 import { logger } from '../config/logger';
 import { AppError } from '../middleware/errorHandler';
 import { ImportExportRepository } from '../repositories/importExport.repository';
@@ -31,7 +31,6 @@ export class ImportExportService {
 
     // Header Columns
     const headers = [
-      'Mahallu Code',
       'Family Code / House Name*',
       'Address Line*',
       'Ward No',
@@ -60,7 +59,6 @@ export class ImportExportService {
 
     // Sample Demo Data Rows
     sheet.addRow([
-      'MH001',
       'FAM-101 (Baitul Noor)',
       'Near Juma Masjid, Ward 4',
       '04',
@@ -75,7 +73,6 @@ export class ImportExportService {
       '123456789012',
     ]);
     sheet.addRow([
-      'MH001',
       'FAM-101 (Baitul Noor)',
       'Near Juma Masjid, Ward 4',
       '04',
@@ -90,7 +87,6 @@ export class ImportExportService {
       '123456789013',
     ]);
     sheet.addRow([
-      'MH001',
       'FAM-101 (Baitul Noor)',
       'Near Juma Masjid, Ward 4',
       '04',
@@ -280,7 +276,11 @@ export class ImportExportService {
 
       const memberCache = new Map<string, any>();
       existingMembers.forEach(m => {
-        memberCache.set(`${m.phone}_${m.name.toLowerCase()}`, m);
+        const fam = existingFamilies.find(f => String(f._id) === String(m.familyId));
+        const famCode = fam ? fam.familyCode.trim() : '';
+        if (famCode) {
+          memberCache.set(`${famCode}_${m.phone?.trim()}_${m.name?.trim().toLowerCase()}`, m);
+        }
       });
 
       const userCache = new Map<string, any>();
@@ -290,16 +290,20 @@ export class ImportExportService {
 
       logger.info(`[Import] Cache built: ${familyCache.size} families, ${memberCache.size} members, ${userCache.size} users.`);
 
-      // Automatically detect header row
+      // Automatically detect header row and column layout
       let startRowIndex = 2;
+      let hasMahalluCodeColumn = false;
       sheet.eachRow((row, rowNumber) => {
         const rowStr = JSON.stringify(row.values).toLowerCase();
         if (rowStr.includes('family code') || rowStr.includes('member name')) {
           startRowIndex = rowNumber + 1;
+          if (rowStr.includes('mahallu code')) {
+            hasMahalluCodeColumn = true;
+          }
         }
       });
 
-      logger.info(`[Import] startRowIndex set to ${startRowIndex}`);
+      logger.info(`[Import] startRowIndex set to ${startRowIndex}, hasMahalluCodeColumn: ${hasMahalluCodeColumn}`);
 
       const rowList: any[] = [];
       sheet.eachRow((row, rowNumber) => {
@@ -356,19 +360,19 @@ export class ImportExportService {
           return String(val).trim();
         };
 
-        const mahalluCode = getVal(1);
-        const familyCode = getVal(2);
-        const addressLine = getVal(3);
-        const wardNo = getVal(4);
-        const familyEmail = getVal(5).toLowerCase();
-        const familyPassword = getVal(6);
-        const memberName = getVal(7);
-        const gender = getVal(8).toLowerCase();
-        const dob = getVal(9);
-        const phone = getVal(10);
-        const relationship = getVal(11).toLowerCase();
-        const occupation = getVal(12);
-        const aadhaar = getVal(13);
+        const offset = hasMahalluCodeColumn ? 1 : 0;
+        const familyCode = getVal(1 + offset);
+        const addressLine = getVal(2 + offset);
+        const wardNo = getVal(3 + offset);
+        const familyEmail = getVal(4 + offset).toLowerCase();
+        const familyPassword = getVal(5 + offset);
+        const memberName = getVal(6 + offset);
+        const gender = getVal(7 + offset).toLowerCase();
+        const dob = getVal(8 + offset);
+        const phone = getVal(9 + offset);
+        const relationship = getVal(10 + offset).toLowerCase();
+        const occupation = getVal(11 + offset);
+        const aadhaar = getVal(12 + offset);
 
         if (!familyCode && !memberName) {
           totalRecords--; // Reduce totalRecords for empty skipped rows
@@ -420,8 +424,8 @@ export class ImportExportService {
             familyMap.set(familyCode, family);
           }
 
-          // Check if Member already exists by phone & tenantId (from memory map)
-          const memberKey = `${phone}_${memberName.toLowerCase()}`;
+          // Check if Member already exists in THIS specific family (familyCode + phone + name)
+          const memberKey = `${familyCode.trim()}_${phone.trim()}_${memberName.trim().toLowerCase()}`;
           let member = memberCache.get(memberKey);
           const isHead = relationship === 'head' || relationship === 'head of family' || family.members.length === 0;
 
@@ -429,15 +433,15 @@ export class ImportExportService {
             failedCount++;
             errorDetails.push({
               row: rowNumber,
-              message: `Duplicate member record: "${memberName}" with phone "${phone}" was already imported in an earlier row or exists in database.`,
+              message: `Duplicate member record: "${memberName}" with phone "${phone}" was already imported in an earlier row for family "${familyCode}".`,
             });
             continue;
           }
 
-          // Parse DOB safely
+          // Parse DOB safely with dynamic column offset
           let dateOfBirth: Date | undefined = undefined;
           if (dob) {
-            const rawDob = row.getCell(9).value;
+            const rawDob = row.getCell(8 + offset).value;
             if (rawDob instanceof Date) {
               dateOfBirth = rawDob;
             } else {

@@ -100,6 +100,10 @@ export class AuthRepository {
   // (isActive filter present/absent, tenantId conditional/required,
   // isDeleted filter present/absent) that must be preserved exactly.
 
+  static async findFirstActiveTenant() {
+    return Tenant.findOne({ isDeleted: { $ne: true } }).sort({ createdAt: 1 });
+  }
+
   static async findActiveTenantByMahalluCode(mahalluCode: string): Promise<TenantDocument | null> {
     return Tenant.findOne({ mahalluCode, isActive: true });
   }

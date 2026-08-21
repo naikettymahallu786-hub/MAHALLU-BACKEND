@@ -7,6 +7,7 @@ const router = Router();
 
 // Public route for mobile app
 router.post('/submit', submitRegistration);
+router.get('/families', getFamiliesForRegistration);
 router.get('/families/:mahalluCode', getFamiliesForRegistration);
 
 // Protected admin routes

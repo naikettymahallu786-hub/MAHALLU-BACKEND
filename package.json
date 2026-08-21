@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p packages/shared-types && tsc -p packages/shared-config && (tsc --skipLibCheck || echo 'Bypassing compiler checks')",
+    "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seed.ts",
     "clear-db": "tsx src/scripts/clear-db.ts",
@@ -14,8 +14,6 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
-    "@mahallu/shared-config": "file:./packages/shared-config",
-    "@mahallu/shared-types": "file:./packages/shared-types",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.7.5",
     "@types/cors": "^2.8.17",

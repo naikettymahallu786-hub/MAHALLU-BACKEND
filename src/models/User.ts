@@ -58,15 +58,17 @@ UserSchema.index({ tenantId: 1, phone: 1 });
 UserSchema.index({ tenantId: 1, role: 1 });
 
 // Hash password before saving
-UserSchema.pre('save', async function (this: UserDocument, next) {
-  if (!this.isModified('passwordHash')) return next();
+UserSchema.pre('save', async function (next) {
+  const user = this as UserDocument;
+  if (!user.isModified('passwordHash') || !user.passwordHash) return next();
   const salt = await bcrypt.genSalt(12);
-  this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
+  user.passwordHash = await bcrypt.hash(user.passwordHash, salt);
   next();
 });
 
 // Compare password method
 UserSchema.methods.comparePassword = async function (this: UserDocument, candidatePassword: string): Promise<boolean> {
+  if (!this.passwordHash) return false;
   return bcrypt.compare(candidatePassword, this.passwordHash);
 };
 
