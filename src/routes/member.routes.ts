@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { MemberController } from '../controllers/member.controller';
 import { authenticate, authorize } from '../middleware/auth';
-import { PERMISSIONS } from '@mahallu/shared-config';
+import { PERMISSIONS } from "../config/constants";
 import { auditLog } from '../middleware/requestLogger';
 
 const router = Router();

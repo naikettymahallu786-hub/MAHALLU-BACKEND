@@ -2,7 +2,7 @@ import { AppError } from '../middleware/errorHandler';
 import { CertificateRepository } from '../repositories/certificate.repository';
 import { CertificateRequestRepository } from '../repositories/certificateRequest.repository';
 import { generateSequentialId } from '../domain/idGenerator';
-import { CertificateType } from '@mahallu/shared-types';
+import { CertificateType } from "../types";
 
 export class CertificateService {
   static async getAll(tenantId: string) {

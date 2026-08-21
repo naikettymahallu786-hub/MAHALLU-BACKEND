@@ -1,5 +1,5 @@
 import { RegistrationStatus, RegistrationType } from '../models/RegistrationRequest';
-import { UserRole, Gender, MemberStatus } from '@mahallu/shared-types';
+import { UserRole, Gender, MemberStatus } from "../types";
 import { AppError } from '../middleware/errorHandler';
 import { RegistrationRepository } from '../repositories/registration.repository';
 

@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User';
-import { JwtPayload, UserRole } from '@mahallu/shared-types';
-import { ROLE_PERMISSIONS, Permission } from '@mahallu/shared-config';
+import { JwtPayload, UserRole } from "../types";
+import { ROLE_PERMISSIONS, Permission } from "../config/constants";
 import { isTokenBlacklisted } from '../config/redis';
 import { AppError } from './errorHandler';
 

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { NotificationChannel } from '@mahallu/shared-types';
+import { NotificationChannel } from "../types";
 
 export interface NotificationDocument extends Document {
   tenantId: mongoose.Types.ObjectId; channel: NotificationChannel;

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { IUser, UserRole } from '@mahallu/shared-types';
+import { IUser, UserRole } from "../types";
 
 export interface UserDocument extends Omit<IUser, '_id' | 'tenantId' | 'memberId'>, Document {
   tenantId: mongoose.Types.ObjectId;

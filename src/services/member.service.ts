@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import { AppError } from '../middleware/errorHandler';
 import { MemberRepository } from '../repositories/member.repository';
-import { DEFAULT_PAGINATION } from '@mahallu/shared-config';
+import { DEFAULT_PAGINATION } from "../config/constants";
 import { generateSequentialId } from '../domain/idGenerator';
 import { buildPaginationMeta } from '../domain/pagination';
 

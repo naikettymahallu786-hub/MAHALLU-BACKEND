@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { AttendanceStatus } from '@mahallu/shared-types';
+import { AttendanceStatus } from "../types";
 
 export interface AttendanceDocument extends Document {
   tenantId: mongoose.Types.ObjectId;

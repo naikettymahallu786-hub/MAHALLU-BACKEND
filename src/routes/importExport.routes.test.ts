@@ -10,7 +10,7 @@ import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
 import { Member } from '../models/Member';
 import { ImportExportLog } from '../models/ImportExportLog';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const app = createApp();
 

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { LeaseStatus } from '@mahallu/shared-types';
+import { LeaseStatus } from "../types";
 
 export interface LeaseDocument extends Document {
   tenantId: mongoose.Types.ObjectId; propertyId: mongoose.Types.ObjectId;

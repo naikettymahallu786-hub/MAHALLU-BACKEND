@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { CertificateType } from '@mahallu/shared-types';
+import { CertificateType } from "../types";
 
 export interface CertificateDocument extends Document {
   tenantId: mongoose.Types.ObjectId;

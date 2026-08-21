@@ -13,7 +13,7 @@ import { User } from '../models/User';
 import { Member } from '../models/Member';
 import { Family } from '../models/Family';
 import { RegistrationRequest, RegistrationStatus, RegistrationType } from '../models/RegistrationRequest';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const app = createApp();
 

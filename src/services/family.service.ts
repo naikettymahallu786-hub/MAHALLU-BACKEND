@@ -6,7 +6,7 @@ import { generateSequentialId } from '../domain/idGenerator';
 import { buildPaginationMeta } from '../domain/pagination';
 import { buildCSV } from '../domain/csvExport';
 import { computeDateRange } from '../domain/dateRangeQuery';
-import { NotificationChannel } from '@mahallu/shared-types';
+import { NotificationChannel } from "../types";
 
 function escapeSearchRegex(input: string) {
   return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

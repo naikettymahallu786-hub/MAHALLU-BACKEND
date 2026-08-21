@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 export function objectId() {
   return new mongoose.Types.ObjectId();

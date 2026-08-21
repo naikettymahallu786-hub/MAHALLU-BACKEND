@@ -17,7 +17,7 @@ import { Payment } from '../models/Payment';
 import { Donation } from '../models/Donation';
 import { Transaction } from '../models/Transaction';
 import { Attendance } from '../models/Attendance';
-import { UserRole, PaymentType, PaymentStatus, AttendanceStatus } from '@mahallu/shared-types';
+import { UserRole, PaymentType, PaymentStatus, AttendanceStatus } from "../types";
 
 const app = createApp();
 

@@ -3,7 +3,7 @@ import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
 import { Settings } from '../models/Settings';
 import { logger } from '../config/logger';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const REMOTE_URI = 'mongodb+srv://sajalurahman321_db_user:WL5nBDCZFKsVUahn@cluster0.s6lu4m7.mongodb.net/test?appName=Cluster0';
 

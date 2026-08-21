@@ -5,7 +5,7 @@ import { Family } from '../models/Family';
 import { Member } from '../models/Member';
 import { User } from '../models/User';
 import { Notification } from '../models/Notification';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const app = createApp();
 const baseAddress = { line1: 'X', city: 'Kochi', district: 'Ernakulam', pincode: '682001' };

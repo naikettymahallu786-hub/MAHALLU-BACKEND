@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import { authenticate, authorizeRoles } from '../middleware/auth';
 import { authRateLimiter } from '../middleware/rateLimiter';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const router = Router();
 

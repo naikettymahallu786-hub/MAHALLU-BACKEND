@@ -6,8 +6,8 @@ import { processPaymentDues } from './paymentAllocation.service';
 import { generateSequentialId } from '../domain/idGenerator';
 import { buildCSV } from '../domain/csvExport';
 import { computeDateRange } from '../domain/dateRangeQuery';
-import { PaymentStatus } from '@mahallu/shared-types';
-import { PERMISSIONS, ROLE_PERMISSIONS } from '@mahallu/shared-config';
+import { PaymentStatus } from "../types";
+import { PERMISSIONS, ROLE_PERMISSIONS } from "../config/constants";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_TEgC71zlAgHt9w',

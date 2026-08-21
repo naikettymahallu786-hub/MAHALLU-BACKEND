@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { AttendanceStatus } from '@mahallu/shared-types';
+import { AttendanceStatus } from "../types";
 import dayjs from 'dayjs';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 

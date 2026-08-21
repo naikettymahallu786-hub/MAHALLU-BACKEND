@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { ImportExportController } from '../controllers/importExport.controller';
 import { authenticate, authorize } from '../middleware/auth';
-import { PERMISSIONS } from '@mahallu/shared-config';
+import { PERMISSIONS } from "../config/constants";
 
 const upload = multer({ storage: multer.memoryStorage() });
 const router = Router();

@@ -4,7 +4,7 @@ import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
 import { Settings } from '../models/Settings';
 import { logger } from '../config/logger';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 import mongoose from 'mongoose';
 
 async function clearDatabase() {

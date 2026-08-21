@@ -7,7 +7,7 @@ import { Attendance } from '../models/Attendance';
 import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
 import { Student } from '../models/Student';
-import { PaymentType, PaymentStatus, PaymentGateway, AttendanceStatus, MemberStatus, Gender } from '@mahallu/shared-types';
+import { PaymentType, PaymentStatus, PaymentGateway, AttendanceStatus, MemberStatus, Gender } from "../types";
 import dayjs from 'dayjs';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });

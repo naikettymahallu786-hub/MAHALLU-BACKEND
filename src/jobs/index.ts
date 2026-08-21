@@ -66,7 +66,7 @@ export function initializeCronJobs(): void {
         const { User } = await import('../models/User');
         const { Notification } = await import('../models/Notification');
         const { Donation } = await import('../models/Donation');
-        const { NotificationChannel } = await import('@mahallu/shared-types');
+        const { NotificationChannel } = await import("../types");
 
         const familiesToBill = await Family.find(query);
         logger.info(`Found ${familiesToBill.length} families to bill for recurring donations.`);

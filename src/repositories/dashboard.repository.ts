@@ -7,7 +7,7 @@ import { Payment } from '../models/Payment';
 import { Donation } from '../models/Donation';
 import { Attendance } from '../models/Attendance';
 import { Transaction } from '../models/Transaction';
-import { PaymentType, PaymentStatus } from '@mahallu/shared-types';
+import { PaymentType, PaymentStatus } from "../types";
 
 export class DashboardRepository {
   static async countFamilies(tenantId: mongoose.Types.ObjectId) {

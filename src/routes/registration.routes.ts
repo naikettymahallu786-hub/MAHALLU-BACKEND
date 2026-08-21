@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { submitRegistration, getPendingRegistrations, approveRegistration, rejectRegistration, getFamiliesForRegistration } from '../controllers/registration.controller';
 import { authenticate, authorizeRoles } from '../middleware/auth';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const router = Router();
 

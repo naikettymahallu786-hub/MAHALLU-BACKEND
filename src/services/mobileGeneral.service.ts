@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { PRAYER_TIMES_API } from '@mahallu/shared-config';
+import { PRAYER_TIMES_API } from "../config/constants";
 import { AppError } from '../middleware/errorHandler';
 import { MobileGeneralRepository as Repo } from '../repositories/mobileGeneral.repository';
 import { cleanEventDescription } from '../domain/eventTemplates';

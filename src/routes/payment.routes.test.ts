@@ -6,7 +6,7 @@ import { Payment } from '../models/Payment';
 import { Receipt } from '../models/Receipt';
 import { Member } from '../models/Member';
 import { Family } from '../models/Family';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 jest.mock('razorpay', () => {
   return jest.fn().mockImplementation(() => ({

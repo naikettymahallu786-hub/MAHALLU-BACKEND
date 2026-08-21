@@ -15,12 +15,7 @@
     "sourceMap": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@mahallu/shared-config": ["src/config/constants"],
-      "@mahallu/shared-types": ["src/types"]
-    }
+    "baseUrl": "."
   },
   "ts-node": {
     "transpileOnly": true,

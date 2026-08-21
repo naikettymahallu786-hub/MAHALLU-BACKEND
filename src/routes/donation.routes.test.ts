@@ -7,7 +7,7 @@ import { Member } from '../models/Member';
 import { User } from '../models/User';
 import { Notification } from '../models/Notification';
 import { Payment } from '../models/Payment';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const app = createApp();
 

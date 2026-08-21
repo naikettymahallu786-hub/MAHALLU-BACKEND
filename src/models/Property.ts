@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { PropertyType } from '@mahallu/shared-types';
+import { PropertyType } from "../types";
 
 export interface PropertyDocument extends Document {
   tenantId: mongoose.Types.ObjectId; propertyCode: string; type: PropertyType; name: string;

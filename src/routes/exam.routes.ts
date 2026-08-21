@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate, authorize } from '../middleware/auth';
-import { PERMISSIONS } from '@mahallu/shared-config';
+import { PERMISSIONS } from "../config/constants";
 import { ExamController } from '../controllers/exam.controller';
 
 const r = Router();

@@ -1,7 +1,7 @@
 import { DonationRepository } from '../repositories/donation.repository';
 import { buildPaginationMeta } from '../domain/pagination';
 import { generateSequentialId } from '../domain/idGenerator';
-import { NotificationChannel } from '@mahallu/shared-types';
+import { NotificationChannel } from "../types";
 
 export class DonationService {
   static async getAll(tenantId: string, query: { page?: string; limit?: string; campaign?: string }) {

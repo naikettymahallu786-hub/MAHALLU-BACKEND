@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { ITenant } from '@mahallu/shared-types';
+import { ITenant } from "../types";
 
 export interface TenantDocument extends Omit<ITenant, '_id'>, Document {}
 

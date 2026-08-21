@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 import { createApp } from '../app';
 import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 const app = createApp();
 

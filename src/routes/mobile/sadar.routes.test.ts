@@ -5,7 +5,7 @@ import { Member } from '../../models/Member';
 import { Family } from '../../models/Family';
 import { Class } from '../../models/Class';
 import { Student } from '../../models/Student';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../../types";
 
 const app = createApp();
 

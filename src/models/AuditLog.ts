@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { IAuditLog } from '@mahallu/shared-types';
+import { IAuditLog } from "../types";
 
 export interface AuditLogDocument extends Omit<IAuditLog, '_id' | 'tenantId' | 'userId' | 'entityId'>, Document {
   tenantId: mongoose.Types.ObjectId;

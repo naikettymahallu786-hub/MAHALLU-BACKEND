@@ -9,7 +9,7 @@ import { Homework } from '../../models/Homework';
 import { Exam } from '../../models/Exam';
 import { Attendance } from '../../models/Attendance';
 import { Notification } from '../../models/Notification';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../../types";
 
 const app = createApp();
 

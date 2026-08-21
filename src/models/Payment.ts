@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import { PaymentType, PaymentStatus, PaymentGateway } from '@mahallu/shared-types';
+import { PaymentType, PaymentStatus, PaymentGateway } from "../types";
 
 export interface PaymentDocument extends Document {
   tenantId: mongoose.Types.ObjectId;

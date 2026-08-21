@@ -11,7 +11,7 @@ import { Tenant } from '../models/Tenant';
 import { User } from '../models/User';
 import { Member } from '../models/Member';
 import { Family } from '../models/Family';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 
 async function createTenant(overrides: Partial<Record<string, unknown>> = {}) {
   return Tenant.create({

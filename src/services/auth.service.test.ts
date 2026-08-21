@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 import { AuthService } from './auth.service';
 import { User } from '../models/User';
 import { Tenant } from '../models/Tenant';
-import { UserRole } from '@mahallu/shared-types';
+import { UserRole } from "../types";
 import { isTokenBlacklisted } from '../config/redis';
 
 async function createTenant() {
