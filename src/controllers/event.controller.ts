@@ -27,11 +27,32 @@ export class EventController {
     try {
       const e = await EventService.create(req.user!.tenantId, req.body);
 
+      // Create persistent broadcast notification for all mobile members
+      try {
+        const { Notification } = await import('../models/Notification');
+        const shortBody = e.description
+          ? (e.description.length > 150 ? `${e.description.slice(0, 150)}...` : e.description)
+          : `മഹല്ലിൽ പുതിയ പരിപാടി നിശ്ചയിച്ചിരിക്കുന്നു. തീയതി: ${new Date(e.date).toLocaleDateString('en-IN')}`;
+
+        await Notification.create({
+          tenantId: req.user!.tenantId,
+          channel: 'in_app',
+          title: `📢 പുതിയ പരിപാടി: ${e.title}`,
+          body: shortBody,
+          data: { eventId: e._id, type: 'event_announcement' },
+          status: 'sent',
+          sentAt: new Date(),
+        });
+      } catch (notifErr) {
+        console.error('Failed to create event broadcast notification:', notifErr);
+      }
+
       const io = req.app.get('io');
       if (io) {
         io.to(`tenant-${req.user!.tenantId}`).emit('new-event', {
-          title: `New Event: ${e.title}`,
+          title: `📢 New Event: ${e.title}`,
           body: e.description || 'A new event has been scheduled.',
+          eventId: e._id,
         });
       }
 
