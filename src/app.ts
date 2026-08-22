@@ -55,7 +55,7 @@ export function createApp(): HttpServer {
   // ---- Socket.io ----
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: '*',
       methods: ['GET', 'POST'],
     },
   });
