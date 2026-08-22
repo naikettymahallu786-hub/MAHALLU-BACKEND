@@ -5,8 +5,8 @@ export class ClassRepository {
     return Class.find({ tenantId })
       .populate({
         path: 'teacherId',
-        select: 'employeeId memberId',
-        populate: { path: 'memberId', select: 'name' },
+        select: 'employeeId memberId subjects qualification',
+        populate: { path: 'memberId', select: 'name photo phone email' },
       })
       .sort({ level: 1 })
       .lean();
@@ -27,6 +27,11 @@ export class ClassRepository {
   }
 
   static async updateByIdAndTenant(id: string, tenantId: string, data: Record<string, unknown>) {
-    return Class.findOneAndUpdate({ _id: id, tenantId }, { $set: data }, { new: true });
+    return Class.findOneAndUpdate({ _id: id, tenantId }, { $set: data }, { new: true })
+      .populate({
+        path: 'teacherId',
+        select: 'employeeId memberId subjects qualification',
+        populate: { path: 'memberId', select: 'name photo phone email' },
+      });
   }
 }

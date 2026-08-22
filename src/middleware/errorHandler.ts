@@ -47,10 +47,18 @@ export const errorHandler = (
 
   // MongoDB duplicate key
   if (err.code === 11000) {
-    const field = Object.keys(err.keyValue || {})[0];
+    const keys = Object.keys(err.keyValue || {});
+    let message = 'Record already exists';
+    if (keys.includes('name') && (keys.includes('tenantId') || keys.includes('madrasaId'))) {
+      message = `A class or record with the name "${err.keyValue.name}" already exists`;
+    } else {
+      const nonTenantKeys = keys.filter(k => k !== 'tenantId' && k !== 'madrasaId');
+      const targetField = nonTenantKeys[0] || keys[0];
+      message = `${targetField ? targetField.charAt(0).toUpperCase() + targetField.slice(1) : 'Record'} already exists`;
+    }
     res.status(409).json({
       success: false,
-      message: `${field} already exists`,
+      message,
     });
     return;
   }
