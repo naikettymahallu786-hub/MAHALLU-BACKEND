@@ -1,34 +1,92 @@
 import { MobileUstadhRepository as Repo } from '../repositories/mobileUstadh.repository';
-
-// This entire domain preserves its manual role checks EXACTLY as they were
-// in the original monolithic mobile.routes.ts, per an explicit decision NOT
-// to swap them for authorize()/authorizeRoles() middleware (which would
-// change behavior — see the getClasses/getHomework/getExams 200-vs-403
-// inconsistency and the DB-fresh-vs-JWT-cached role check noted below).
-//
-// Every check re-fetches the user's role fresh from MongoDB
-// (findUserRoleAndMemberId) rather than trusting req.user.role from the
-// JWT — meaning a role change takes effect immediately, unlike
-// authorizeRoles() which is JWT-cached. This is intentional and preserved.
+import { User } from '../models/User';
+import { Member } from '../models/Member';
+import { Teacher } from '../models/Teacher';
+import { Class } from '../models/Class';
+import { Student } from '../models/Student';
+import { Homework } from '../models/Homework';
+import { Exam } from '../models/Exam';
 
 type StatusResult = { status: number; body: Record<string, unknown> };
 
 export class MobileUstadhService {
-  // NOTE: Teacher is looked up with .select('_id') only, so
-  // `teacher.assignedStudents` is always undefined here — the
-  // "My Direct Students" pseudo-class block below is unreachable dead
-  // code in the original implementation. Preserved verbatim.
+  /**
+   * Helper: Resolve memberId & teacherId for current user
+   */
+  private static async resolveTeacherInfo(userId: string, tenantId: string) {
+    const user = await User.findById(userId).select('memberId role email phone name').lean();
+    if (!user) return { user: null, member: null, teacher: null };
+
+    let memberId = user.memberId;
+    let member = memberId ? await Member.findById(memberId).lean() : null;
+
+    if (!member) {
+      member = await Member.findOne({
+        tenantId,
+        $or: [{ userId }, { email: user.email }, { phone: user.phone }],
+      }).lean();
+
+      if (member) {
+        memberId = member._id as any;
+        await User.findByIdAndUpdate(userId, { memberId: member._id });
+      }
+    }
+
+    let teacher = memberId ? await Teacher.findOne({ tenantId, memberId }).lean() : null;
+    if (!teacher) {
+      teacher = await Teacher.findOne({
+        tenantId,
+        $or: [{ memberId: userId }, { _id: memberId }],
+      }).lean();
+    }
+
+    return { user, member, teacher };
+  }
+
   static async getClasses(userId: string, tenantId: string) {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return [];
+    const { user, member, teacher } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return [];
 
-    const teacher = await Repo.findTeacherId(tenantId, user.memberId);
-    if (!teacher) return [];
+    const possibleTeacherIds = [
+      teacher?._id,
+      member?._id,
+      user._id,
+    ].filter(Boolean);
 
-    const classes = await Repo.findClassesByTeacher(tenantId, teacher._id);
+    let classes: any[] = [];
+    if (possibleTeacherIds.length > 0) {
+      classes = await Class.find({ tenantId, teacherId: { $in: possibleTeacherIds } })
+        .populate({
+          path: 'teacherId',
+          select: 'employeeId memberId qualification subjects',
+          populate: { path: 'memberId', select: 'name photo phone email' },
+        })
+        .lean();
+    }
+
+    // If Sadar Mualim, Madrasa Principal, or Super Admin, or if no class explicitly assigned
+    if (classes.length === 0 && (user.role === 'sadar_mualim' || user.role === 'madrasa_principal' || user.role === 'super_admin')) {
+      classes = await Class.find({ tenantId })
+        .populate({
+          path: 'teacherId',
+          select: 'employeeId memberId qualification subjects',
+          populate: { path: 'memberId', select: 'name photo phone email' },
+        })
+        .lean();
+    }
+
     const classIds = classes.map((c: any) => c._id);
 
-    const allStudents = await Repo.findActiveStudentsByClassIds(tenantId, classIds);
+    const allStudents = await Student.find({
+      tenantId,
+      classId: { $in: classIds },
+      status: 'active',
+      isDeleted: { $ne: true },
+    })
+      .populate({ path: 'memberId', select: 'name photo phone gender memberId', options: { strictPopulate: false } })
+      .populate({ path: 'familyId', select: 'familyCode headMemberId address', options: { strictPopulate: false } })
+      .lean();
+
     const studentsByClass = new Map<string, any[]>();
     allStudents.forEach((s: any) => {
       const cid = s.classId?.toString() || '';
@@ -40,40 +98,25 @@ export class MobileUstadhService {
       c.students = studentsByClass.get(c._id.toString()) || [];
     });
 
-    if ((teacher as any).assignedStudents && (teacher as any).assignedStudents.length > 0) {
-      const directStudents = await Repo.findDirectAssignedStudents((teacher as any).assignedStudents);
-      if (directStudents.length > 0) {
-        classes.push({
-          _id: 'direct-assigned',
-          name: 'My Direct Students',
-          students: directStudents,
-          schedule: (teacher as any).schedule || [],
-        } as any);
-      }
-    }
-
     return classes;
   }
 
   static async updateTimetable(userId: string, tenantId: string, classIdParam: string, schedule: unknown): Promise<StatusResult> {
     if (!Array.isArray(schedule)) return { status: 400, body: { error: 'Schedule must be an array' } };
 
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { error: 'Unauthorized' } };
+    const { user, teacher } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { error: 'Unauthorized' } };
 
-    const teacher = await Repo.findTeacherId(tenantId, user.memberId);
-    if (!teacher) return { status: 403, body: { error: 'Unauthorized' } };
-
-    if (classIdParam === 'direct-assigned') {
+    if (classIdParam === 'direct-assigned' && teacher) {
       await Repo.setTeacherSchedule(teacher._id, schedule);
       return { status: 200, body: { success: true, data: { _id: 'direct-assigned', name: 'My Direct Students', schedule } } };
     }
 
-    const classToUpdate = await Repo.findClassForTeacher(classIdParam, tenantId, teacher._id);
+    const classToUpdate = await Class.findOne({ _id: classIdParam, tenantId });
     if (!classToUpdate) return { status: 404, body: { error: 'Class not found' } };
 
-    (classToUpdate as any).schedule = schedule;
-    await Repo.saveClass(classToUpdate);
+    classToUpdate.schedule = schedule as any;
+    await classToUpdate.save();
 
     return { status: 200, body: { success: true, data: classToUpdate } };
   }
@@ -83,8 +126,8 @@ export class MobileUstadhService {
     tenantId: string,
     body: { classId?: string; date?: string; records?: any[] },
   ): Promise<StatusResult> {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { success: false, message: 'Unauthorized' } };
+    const { user } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { success: false, message: 'Unauthorized' } };
 
     const { classId, date, records } = body;
     if (!classId || !date || !records || !Array.isArray(records)) {
@@ -129,8 +172,8 @@ export class MobileUstadhService {
     tenantId: string,
     body: { classId?: string; studentId?: string; title?: string; message?: string },
   ): Promise<StatusResult> {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { success: false, message: 'Unauthorized' } };
+    const { user } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { success: false, message: 'Unauthorized' } };
 
     const { classId, studentId, title, message } = body;
     if (!classId || !title || !message) {
@@ -162,13 +205,11 @@ export class MobileUstadhService {
   }
 
   static async getHomework(userId: string, tenantId: string) {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return [];
+    const { user, teacher } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return [];
 
-    const teacher = await Repo.findTeacherId(tenantId, user.memberId);
-    if (!teacher) return [];
-
-    return Repo.findHomeworkByTeacher(tenantId, teacher._id);
+    const teacherId = teacher?._id || userId;
+    return Repo.findHomeworkByTeacher(tenantId, teacherId);
   }
 
   static async createHomework(
@@ -176,152 +217,133 @@ export class MobileUstadhService {
     tenantId: string,
     body: { classId?: string; subject?: string; title?: string; description?: string; dueDate?: string },
   ): Promise<StatusResult> {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { success: false, message: 'Unauthorized' } };
-
-    const teacher = await Repo.findTeacherId(tenantId, user.memberId);
-    if (!teacher) return { status: 403, body: { success: false, message: 'Teacher profile not found' } };
+    const { user, teacher } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { success: false, message: 'Unauthorized' } };
 
     const { classId, subject, title, description, dueDate } = body;
     if (!classId || !subject || !title || !dueDate) {
       return { status: 400, body: { success: false, message: 'Missing required fields' } };
     }
 
-    const newHomework = await Repo.createHomework({
+    const teacherId = teacher?._id || userId;
+
+    const homework = await Repo.createHomework({
       tenantId,
       classId,
-      teacherId: teacher._id,
+      teacherId,
       subject,
       title,
       description,
-      dueDate,
-      attachments: [],
-      submissions: [],
+      dueDate: new Date(dueDate),
     });
 
-    return { status: 200, body: { success: true, data: newHomework, message: 'Homework assigned successfully' } };
+    return { status: 201, body: { success: true, data: homework } };
   }
 
   static async gradeHomework(
     userId: string,
     tenantId: string,
     homeworkId: string,
-    body: { studentId?: string; grade?: unknown; feedback?: unknown },
+    body: { studentId?: string; grade?: string; feedback?: string },
   ): Promise<StatusResult> {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { success: false, message: 'Unauthorized' } };
-
-    const teacher = await Repo.findTeacherId(tenantId, user.memberId);
-    if (!teacher) return { status: 403, body: { success: false, message: 'Teacher profile not found' } };
+    const { user, teacher } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { success: false, message: 'Unauthorized' } };
 
     const { studentId, grade, feedback } = body;
-    if (!studentId || grade === undefined) {
-      return { status: 400, body: { success: false, message: 'Missing required fields' } };
+    if (!studentId || !grade) {
+      return { status: 400, body: { success: false, message: 'Missing fields' } };
     }
 
-    const homework = await Repo.findHomeworkForGrading(homeworkId, tenantId, teacher._id);
-    if (!homework) return { status: 404, body: { success: false, message: 'Homework not found' } };
+    const teacherId = teacher?._id || userId;
+    const hw = await Repo.findHomeworkForGrading(homeworkId, tenantId, teacherId);
+    if (!hw) return { status: 404, body: { success: false, message: 'Homework not found' } };
 
-    const submissionIndex = (homework as any).submissions.findIndex((s: any) => s.studentId?.toString() === studentId);
-    if (submissionIndex >= 0) {
-      (homework as any).submissions[submissionIndex].grade = grade;
-      (homework as any).submissions[submissionIndex].feedback = feedback;
-      (homework as any).submissions[submissionIndex].gradedAt = new Date();
+    const submissions = (hw as any).submissions || [];
+    const existingIndex = submissions.findIndex((s: any) => s.studentId?.toString() === studentId);
+
+    if (existingIndex >= 0) {
+      submissions[existingIndex].grade = grade;
+      submissions[existingIndex].feedback = feedback;
+      submissions[existingIndex].status = 'graded';
     } else {
-      (homework as any).submissions.push({
+      submissions.push({
         studentId,
         submittedAt: new Date(),
-        attachments: [],
         grade,
         feedback,
-        gradedAt: new Date(),
+        status: 'graded',
       });
     }
 
-    await Repo.saveHomework(homework);
-    return { status: 200, body: { success: true, message: 'Grade saved successfully' } };
+    (hw as any).submissions = submissions;
+    await Repo.saveHomework(hw);
+
+    return { status: 200, body: { success: true, data: hw } };
   }
 
   static async getExams(userId: string, tenantId: string) {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return [];
-
-    const teacher = await Repo.findTeacherIdAndAssignedStudents(tenantId, user.memberId);
-    if (!teacher) return [];
-
-    const classes = await Repo.findClassesByTeacher(tenantId, teacher._id);
+    const classes = await this.getClasses(userId, tenantId);
     const classIds = classes.map((c: any) => c._id);
-
     return Repo.findExamsByClassIds(tenantId, classIds);
   }
 
   static async createExam(
     userId: string,
     tenantId: string,
-    body: { classId?: string; title?: string; subjects?: unknown; date?: string; totalMarks?: number; passMark?: number },
+    body: { classId?: string; title?: string; subjects?: string[]; date?: string; totalMarks?: number; passMark?: number },
   ): Promise<StatusResult> {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { success: false, message: 'Unauthorized' } };
-
-    const teacher = await Repo.findTeacherIdAndMadrasaId(tenantId, user.memberId);
-    if (!teacher) return { status: 403, body: { success: false, message: 'Teacher profile not found' } };
+    const { user, teacher } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { success: false, message: 'Unauthorized' } };
 
     const { classId, title, subjects, date, totalMarks, passMark } = body;
-    if (!classId || !title || !subjects || !date || !totalMarks || !passMark) {
+    if (!classId || !title || !subjects || !date) {
       return { status: 400, body: { success: false, message: 'Missing required fields' } };
     }
 
-    const newExam = await Repo.createExam({
+    const teacherId = teacher?._id || userId;
+
+    const exam = await Repo.createExam({
       tenantId,
-      madrasaId: (teacher as any).madrasaId || tenantId,
       classId,
+      createdBy: teacherId,
       title,
       subjects,
-      date,
-      totalMarks,
-      passMark,
-      results: [],
-      isPublished: false,
+      date: new Date(date),
+      totalMarks: totalMarks || 100,
+      passMark: passMark || 40,
     });
 
-    return { status: 200, body: { success: true, data: newExam, message: 'Exam created successfully' } };
+    return { status: 201, body: { success: true, data: exam } };
   }
 
   static async saveExamResults(
     userId: string,
     tenantId: string,
     examId: string,
-    body: {
-      studentId?: string;
-      marks?: unknown;
-      totalObtained?: unknown;
-      percentage?: unknown;
-      grade?: unknown;
-      isPassed?: unknown;
-      remarks?: unknown;
-    },
+    body: { results?: Array<{ studentId: string; marksObtained: number; remarks?: string }> },
   ): Promise<StatusResult> {
-    const user = await Repo.findUserRoleAndMemberId(userId);
-    if (!user?.memberId || user.role !== 'ustadh') return { status: 403, body: { success: false, message: 'Unauthorized' } };
+    const { user } = await this.resolveTeacherInfo(userId, tenantId);
+    if (!user) return { status: 403, body: { success: false, message: 'Unauthorized' } };
 
-    const { studentId, marks, totalObtained, percentage, grade, isPassed, remarks } = body;
-    if (!studentId || marks === undefined) {
-      return { status: 400, body: { success: false, message: 'Missing required fields' } };
+    const { results } = body;
+    if (!results || !Array.isArray(results)) {
+      return { status: 400, body: { success: false, message: 'Missing results array' } };
     }
 
     const exam = await Repo.findExamForResults(examId, tenantId);
     if (!exam) return { status: 404, body: { success: false, message: 'Exam not found' } };
 
-    const resultIndex = (exam as any).results.findIndex((r: any) => r.studentId?.toString() === studentId);
-    const newResult = { studentId, marks, totalObtained, percentage, grade, isPassed, remarks };
+    const passMark = (exam as any).passMark || 40;
+    const formattedResults = results.map((r) => ({
+      studentId: r.studentId,
+      marksObtained: r.marksObtained,
+      isPassed: r.marksObtained >= passMark,
+      remarks: r.remarks,
+    }));
 
-    if (resultIndex >= 0) {
-      (exam as any).results[resultIndex] = newResult;
-    } else {
-      (exam as any).results.push(newResult);
-    }
-
+    (exam as any).results = formattedResults;
     await Repo.saveExam(exam);
-    return { status: 200, body: { success: true, message: 'Exam results saved successfully' } };
+
+    return { status: 200, body: { success: true, data: exam } };
   }
 }
