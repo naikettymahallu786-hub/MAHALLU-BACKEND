@@ -1,9 +1,9 @@
 import { Teacher } from '../models/Teacher';
 
 export class TeacherRepository {
-  static async findAllByTenant(tenantId: string, skip: number, limit: number) {
+  static async findAllByTenant(tenantId: string, skip: number = 0, limit: number = 1000) {
     return Teacher.find({ tenantId })
-      .populate('memberId', 'name photo phone')
+      .populate('memberId', 'name photo phone email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -23,6 +23,6 @@ export class TeacherRepository {
   }
 
   static async updateByIdAndTenant(id: string, tenantId: string, data: Record<string, unknown>) {
-    return Teacher.findOneAndUpdate({ _id: id, tenantId }, { $set: data }, { new: true });
+    return Teacher.findOneAndUpdate({ _id: id, tenantId }, { $set: data }, { new: true }).populate('memberId', 'name photo phone email');
   }
 }

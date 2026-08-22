@@ -4,6 +4,7 @@ import { MadrasaRepository } from '../repositories/madrasa.repository';
 import { Madrasa } from '../models/Madrasa';
 import { Member } from '../models/Member';
 import { User } from '../models/User';
+import { Teacher } from '../models/Teacher';
 import { UserRole, Gender, MemberStatus } from '../types';
 import { buildPaginationMeta } from '../domain/pagination';
 import { generateSequentialId } from '../domain/idGenerator';
@@ -102,7 +103,7 @@ export class TeacherService {
     const qualification = (body.qualification as string) || 'Islamic Scholar / Usthadh';
     const salary = typeof body.salary === 'number' ? body.salary : 0;
 
-    return TeacherRepository.create({
+    const createdTeacher = await TeacherRepository.create({
       ...body,
       tenantId,
       madrasaId,
@@ -111,6 +112,12 @@ export class TeacherService {
       qualification,
       salary,
     });
+
+    const populated = await Teacher.findById(createdTeacher._id)
+      .populate('memberId', 'name photo phone email')
+      .lean();
+
+    return populated || createdTeacher;
   }
 
   static async update(id: string, tenantId: string, body: Record<string, unknown>) {
