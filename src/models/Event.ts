@@ -8,6 +8,19 @@ export interface EventDocument extends Document {
   banner?: { url: string; publicId?: string };
   idCardBgImage?: { url: string; publicId?: string };
   committeeMembers: Array<{ memberId: mongoose.Types.ObjectId; role: string }>;
+  programSchedule?: Array<{
+    dayNumber?: number;
+    dateText?: string;
+    sessionTime?: string;
+    sessionTitle?: string;
+    president?: string;
+    inaugurator?: string;
+    keynoteSpeaker?: string;
+    chiefGuests?: string;
+    felicitations?: string;
+    voteOfThanks?: string;
+    notes?: string;
+  }>;
 }
 const EventSchema = new Schema<EventDocument>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
@@ -26,6 +39,19 @@ const EventSchema = new Schema<EventDocument>({
   committeeMembers: [{
     memberId: { type: Schema.Types.ObjectId, ref: 'Member', required: true },
     role: { type: String, required: true },
+  }],
+  programSchedule: [{
+    dayNumber: Number,
+    dateText: String,
+    sessionTime: String,
+    sessionTitle: String,
+    president: String,
+    inaugurator: String,
+    keynoteSpeaker: String,
+    chiefGuests: String,
+    felicitations: String,
+    voteOfThanks: String,
+    notes: String,
   }],
 }, { timestamps: true });
 EventSchema.index({ tenantId: 1, date: -1 });
