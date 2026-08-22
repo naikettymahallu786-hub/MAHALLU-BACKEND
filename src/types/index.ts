@@ -14,6 +14,7 @@ export const UserRole = {
   PARENT: 'parent',
   STUDENT: 'student',
   SADAR_MUALIM: 'sadar_mualim',
+  MEMBER: 'member',
 } as const;
 export type UserRole = typeof UserRole[keyof typeof UserRole];
 
