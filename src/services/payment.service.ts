@@ -93,7 +93,13 @@ export class PaymentService {
     }
 
     if (paymentStatus && paymentStatus !== 'all') {
-      filter.status = paymentStatus;
+      if (paymentStatus === 'completed' || paymentStatus === 'success' || paymentStatus === 'paid') {
+        filter.status = { $in: ['completed', 'success', 'paid', 'COMPLETED', 'SUCCESS', 'PAID'] };
+      } else if (paymentStatus === 'pending' || paymentStatus === 'unpaid') {
+        filter.status = { $in: ['pending', 'unpaid', 'PENDING', 'UNPAID'] };
+      } else {
+        filter.status = paymentStatus;
+      }
     }
 
     if (gateway && gateway !== 'all') {
@@ -126,6 +132,14 @@ export class PaymentService {
     const paymentItems = payments.map((p: any) => {
       const payer = p.paidById;
       const receipt = p.receiptId;
+      const rawStatus = String(p.status || '').toLowerCase();
+      const normalizedStatus =
+        rawStatus === 'success' || rawStatus === 'paid' || rawStatus === 'completed'
+          ? 'completed'
+          : rawStatus === 'failed'
+          ? 'failed'
+          : 'pending';
+
       return {
         _id: p._id,
         paymentNo: p.paymentNo,
@@ -135,7 +149,7 @@ export class PaymentService {
         category: p.type,
         amount: p.amount || 0,
         gateway: p.gateway,
-        status: p.status,
+        status: normalizedStatus,
         description: p.description || '',
         createdAt: p.createdAt,
       };
