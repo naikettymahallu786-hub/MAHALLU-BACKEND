@@ -1,6 +1,7 @@
 import { AppError } from '../middleware/errorHandler';
 import { ClassRepository } from '../repositories/class.repository';
 import { MadrasaRepository } from '../repositories/madrasa.repository';
+import { Madrasa } from '../models/Madrasa';
 
 export class ClassService {
   static async getAll(tenantId: string) {
@@ -14,11 +15,21 @@ export class ClassService {
   }
 
   static async create(tenantId: string, body: Record<string, unknown>) {
-    const madrasa = await MadrasaRepository.findByTenantRaw(tenantId);
-    if (!madrasa) throw new AppError('Madrasa not found for this tenant', 404);
+    let madrasa = await MadrasaRepository.findByTenantRaw(tenantId);
+    if (!madrasa) {
+      // Auto-create Madrasa record for tenant if not created yet
+      madrasa = await Madrasa.create({
+        tenantId,
+        name: 'Mahallu Madrasa',
+        academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+        classes: [],
+        subjects: ['Quran', 'Fiqh', 'Aqeedah', 'Akhlaq', 'Arabic', 'Thareekh'],
+      });
+    }
 
     const newClass = await ClassRepository.create({ ...body, tenantId, madrasaId: madrasa._id });
 
+    madrasa.classes = madrasa.classes || [];
     madrasa.classes.push(newClass._id as any);
     await madrasa.save();
 
