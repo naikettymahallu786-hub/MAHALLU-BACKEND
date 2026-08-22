@@ -128,23 +128,86 @@ export class MobileGeneralService {
     return targetMember;
   }
 
-  static async getPayments(userId: string, tenantId: string, query: { page?: string | number; limit?: string | number }) {
-    const { page = 1, limit = 20 } = query;
-    const pageNum = parseInt(page as string);
-    const limitNum = Math.min(parseInt(limit as string), 50);
+  static async getPayments(
+    userId: string,
+    tenantId: string,
+    query: {
+      page?: string | number;
+      limit?: string | number;
+      search?: string;
+      category?: string;
+      status?: string;
+      startDate?: string;
+      endDate?: string;
+    },
+  ) {
+    const { page = 1, limit = 50, search, category, status, startDate, endDate } = query;
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = Math.min(parseInt(limit as string) || 50, 100);
 
     const user = await Repo.findUserMemberId(userId);
-    if (!user?.memberId) {
-      return { data: [] as unknown[], pagination: { page: 1, limit: limitNum, total: 0, totalPages: 0 } };
+    const userMemberId = user?.memberId;
+    const userIds = [userId, ...(userMemberId ? [userMemberId] : [])];
+
+    const filter: Record<string, any> = {
+      tenantId,
+      isDeleted: { $ne: true },
+      $or: [
+        { paidById: { $in: userIds } },
+        { paidForId: { $in: userIds } },
+      ],
+    };
+
+    if (category && category !== 'all') {
+      filter.type = category;
     }
 
-    const filter = { tenantId, paidById: user.memberId };
+    if (status && status !== 'all') {
+      if (status === 'completed' || status === 'paid' || status === 'success') {
+        filter.status = { $in: ['completed', 'paid', 'success', 'COMPLETED', 'PAID', 'SUCCESS'] };
+      } else {
+        filter.status = status;
+      }
+    }
+
+    if (startDate || endDate) {
+      filter.createdAt = {};
+      if (startDate) filter.createdAt.$gte = new Date(startDate);
+      if (endDate) {
+        const d = new Date(endDate);
+        d.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = d;
+      }
+    }
+
+    if (search) {
+      const cleanSearch = String(search).trim();
+      const regex = new RegExp(cleanSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$and = [
+        {
+          $or: [
+            { paymentNo: regex },
+            { description: regex },
+            { type: regex },
+          ],
+        },
+      ];
+    }
+
     const [payments, total] = await Promise.all([
       Repo.findPaymentsPaginated(filter, (pageNum - 1) * limitNum, limitNum),
       Repo.countPayments(filter),
     ]);
 
-    return { data: payments, pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) } };
+    return {
+      data: payments,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
   }
 
   static async getDonations(userId: string, tenantId: string) {

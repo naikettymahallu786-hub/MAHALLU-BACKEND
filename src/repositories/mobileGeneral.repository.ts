@@ -85,7 +85,14 @@ export class MobileGeneralRepository {
   }
 
   static async findPaymentsPaginated(filter: Record<string, unknown>, skip: number, limit: number) {
-    return Payment.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
+    return Payment.find(filter)
+      .populate('receiptId', 'receiptNo')
+      .populate('paidById', 'name phone')
+      .populate('paidForId', 'name phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 
   static async countPayments(filter: Record<string, unknown>) {
