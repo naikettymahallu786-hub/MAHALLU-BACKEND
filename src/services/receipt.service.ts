@@ -11,11 +11,54 @@ function extractId(val: any) {
 
 export class ReceiptService {
   static async getAll(tenantId: string) {
-    return ReceiptRepository.findAllByTenant(tenantId);
+    const receipts = await ReceiptRepository.findAllByTenant(tenantId);
+    const { User } = await import('../models/User');
+
+    return Promise.all(
+      receipts.map(async (r: any) => {
+        const payment = r.paymentId;
+        if (!payment) return r;
+
+        let name = payment.paidForId?.name || payment.paidById?.name;
+        if (!name) {
+          if (payment.metadata?.donorName) {
+            name = payment.metadata.donorName;
+          } else if (payment.paidById) {
+            const u = await User.findById(payment.paidById).select('name phone').lean();
+            if (u) name = u.name;
+          }
+        }
+
+        if (name && payment.paidById && !payment.paidById.name) {
+          payment.paidById = { ...(typeof payment.paidById === 'object' ? payment.paidById : {}), name };
+        }
+        return r;
+      }),
+    );
   }
 
   static async getById(id: string, tenantId: string) {
-    return ReceiptRepository.findByIdAndTenant(id, tenantId);
+    const receipt: any = await ReceiptRepository.findByIdAndTenant(id, tenantId);
+    if (!receipt) return null;
+
+    const payment = receipt.paymentId;
+    if (payment) {
+      const { User } = await import('../models/User');
+      let name = payment.paidForId?.name || payment.paidById?.name;
+      if (!name) {
+        if (payment.metadata?.donorName) {
+          name = payment.metadata.donorName;
+        } else if (payment.paidById) {
+          const u = await User.findById(payment.paidById).select('name phone').lean();
+          if (u) name = u.name;
+        }
+      }
+
+      if (name && payment.paidById && !payment.paidById.name) {
+        payment.paidById = { ...(typeof payment.paidById === 'object' ? payment.paidById : {}), name };
+      }
+    }
+    return receipt;
   }
 
   static async createManual(

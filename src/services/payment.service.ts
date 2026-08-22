@@ -393,17 +393,57 @@ export class PaymentService {
     const count = await PaymentRepository.countPayments(tenantId);
     const paymentNo = generateSequentialId('PAY', count, { padWidth: 6 });
 
+    const { User } = await import('../models/User');
+    const { Member } = await import('../models/Member');
+
+    // Resolve actual Member ID for the paying user
+    const userDoc = await User.findById(userId).lean();
+    let payerMemberId = userDoc?.memberId;
+    if (!payerMemberId) {
+      const matchingMember = await Member.findOne({
+        tenantId,
+        $or: [
+          ...(userDoc?.phone ? [{ phone: userDoc.phone }] : []),
+          ...(userDoc?.email ? [{ email: userDoc.email }] : []),
+        ],
+      }).select('_id').lean();
+      if (matchingMember) {
+        payerMemberId = matchingMember._id as any;
+      }
+    }
+
+    let targetMemberId = paidForId;
+    if (targetMemberId) {
+      const targetUser = await User.findById(targetMemberId).lean();
+      if (targetUser?.memberId) {
+        targetMemberId = String(targetUser.memberId);
+      }
+    } else {
+      targetMemberId = payerMemberId ? String(payerMemberId) : undefined;
+    }
+
+    const fallbackMember = !payerMemberId ? await Member.findOne({ tenantId }).select('_id').lean() : null;
+    const finalPaidById = payerMemberId || fallbackMember?._id;
+    const finalPaidForId = targetMemberId || finalPaidById;
+
+    const donorInfo = {
+      donorName: userDoc?.name || 'Mahallu Donor',
+      donorPhone: userDoc?.phone || '',
+      donorEmail: userDoc?.email || '',
+    };
+
     if (gateway === 'cash' || gateway === 'bank_transfer' || gateway === 'upi') {
       const payment = await PaymentRepository.createPayment({
         tenantId,
         paymentNo,
         type,
         amount,
-        paidById: userId,
-        paidForId,
+        paidById: finalPaidById,
+        paidForId: finalPaidForId,
         gateway,
         status: PaymentStatus.SUCCESS,
         description,
+        metadata: donorInfo,
       });
 
       const receiptCount = await PaymentRepository.countReceipts(tenantId);
@@ -420,7 +460,7 @@ export class PaymentService {
       amount: Math.round(amount * 100), // in paise
       currency: 'INR',
       receipt: `rcpt_${Date.now()}`,
-      notes: { tenantId, type, paidForId, description } as any,
+      notes: { tenantId, type, paidForId: finalPaidForId, description } as any,
     });
 
     const payment = await PaymentRepository.createPayment({
@@ -428,12 +468,13 @@ export class PaymentService {
       paymentNo,
       type,
       amount,
-      paidById: userId,
-      paidForId,
+      paidById: finalPaidById,
+      paidForId: finalPaidForId,
       gateway: 'razorpay',
       gatewayOrderId: order.id,
       status: 'pending',
       description,
+      metadata: donorInfo,
     });
 
     return { immediate: false as const, order, payment };
