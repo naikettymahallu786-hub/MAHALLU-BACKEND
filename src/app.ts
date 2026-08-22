@@ -100,9 +100,11 @@ export function createApp(): HttpServer {
         'http://localhost:3001',
         'https://mahallu.app',
         'https://mahallu-dashbaord-five.vercel.app',  
+        'https://mahallu-backend-cv55.onrender.com',
         'https://mahallu-4d9t.onrender.com',
         /\.mahallu\.app$/,
         /\.vercel\.app$/,
+        /\.onrender\.com$/,
       ];
       if (!origin || allowedOrigins.some(o => typeof o === 'string' ? o === origin : o.test(origin))) {
         callback(null, true);
