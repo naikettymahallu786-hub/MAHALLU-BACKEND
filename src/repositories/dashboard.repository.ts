@@ -69,30 +69,10 @@ export class DashboardRepository {
 
   static async sumMonthlyDonations(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
     const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
-    const [paymentDonations, donationDocs] = await Promise.all([
-      Payment.aggregate([
-        {
-          $match: {
-            tenantId: tIdMatch,
-            status: { $in: SUCCESS_STATUSES },
-            isDeleted: { $ne: true },
-            createdAt: { $gte: monthStart, $lte: monthEnd },
-            $or: [
-              { type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat', 'General Sadaqah', 'sadaqah'] } },
-              { description: { $regex: /sadaqah|donation|zakat|maintenance|relief|fund/i } },
-            ],
-          },
-        },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Donation.aggregate([
-        { $match: { tenantId: tIdMatch, createdAt: { $gte: monthStart, $lte: monthEnd }, isDeleted: { $ne: true } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
+    return Donation.aggregate([
+      { $match: { tenantId: tIdMatch, createdAt: { $gte: monthStart, $lte: monthEnd }, isDeleted: { $ne: true } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
-
-    const total = (paymentDonations[0]?.total || 0) + (donationDocs[0]?.total || 0);
-    return [{ total }];
   }
 
   static async sumZakatCollected(tenantId: mongoose.Types.ObjectId) {
