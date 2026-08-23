@@ -74,7 +74,7 @@ export class ReceiptService {
       familyId?: string;
     },
   ) {
-    const { amount, type, paidById, paidForId, description, gateway = 'cash', familyId, donorName, donorPhone } = body as any;
+    const { amount, type, paidById, paidForId, description, gateway = 'cash', familyId, donorName, donorPhone, category } = body as any;
 
     const count = await ReceiptRepository.countPayments(tenantId);
     const paymentNo = generateSequentialId('PAY', count, { padWidth: 6 });
@@ -102,6 +102,7 @@ export class ReceiptService {
 
     const meta: Record<string, any> = {};
     if (familyId) meta.familyId = familyId;
+    if (category) meta.category = category;
     if (donorName) meta.donorName = donorName;
     if (donorPhone) meta.donorPhone = donorPhone;
     if (!paidById && donorName) meta.isExternalDonor = true;
