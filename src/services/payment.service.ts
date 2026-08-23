@@ -523,6 +523,8 @@ export class PaymentService {
         ? donorInfo.donorPhone.replace(/\D/g, '').slice(-10)
         : '9876543210';
 
+      const clientRedirectUrl = (body as any).redirectUrl || 'mahallu://(member)/sadaqah';
+
       const cfBody = {
         order_id: orderId,
         order_amount: Number(amount),
@@ -534,7 +536,7 @@ export class PaymentService {
           customer_phone: cleanPhone.length === 10 ? cleanPhone : '9876543210',
         },
         order_meta: {
-          return_url: `${backendUrl}/api/v1/payments/cashfree-return?order_id={order_id}&paymentId={payment_id}`,
+          return_url: `${backendUrl}/api/v1/payments/cashfree-return?order_id={order_id}&redirectUrl=${encodeURIComponent(clientRedirectUrl)}`,
           notify_url: `${backendUrl}/api/v1/payments/cashfree-webhook`,
         },
         order_note: description || 'Mahallu Payment',
