@@ -19,18 +19,35 @@ export class ReceiptService {
         const payment = r.paymentId;
         if (!payment) return r;
 
-        let name = payment.paidForId?.name || payment.paidById?.name;
-        if (!name) {
-          if (payment.metadata?.donorName) {
-            name = payment.metadata.donorName;
-          } else if (payment.paidById) {
-            const u = await User.findById(payment.paidById).select('name phone').lean();
-            if (u) name = u.name;
-          }
+        let name = '';
+        if (payment.metadata?.donorName) {
+          name = payment.metadata.donorName;
+        } else if (r.metadata?.donorName) {
+          name = r.metadata.donorName;
+        } else if (payment.description?.includes('(Donor: ')) {
+          const match = payment.description.match(/\(Donor:\s*([^,)]+)/);
+          if (match) name = match[1].trim();
+        } else if (payment.metadata?.name) {
+          name = payment.metadata.name;
+        } else if (payment.paidForId?.name && !payment.metadata?.isExternalDonor) {
+          name = payment.paidForId.name;
+        } else if (payment.paidById?.name && !payment.metadata?.isExternalDonor) {
+          name = payment.paidById.name;
+        } else if (payment.paidById) {
+          const u = await User.findById(payment.paidById).select('name phone').lean();
+          if (u) name = u.name;
         }
 
-        if (name && payment.paidById && !payment.paidById.name) {
-          payment.paidById = { ...(typeof payment.paidById === 'object' ? payment.paidById : {}), name };
+        if (!name) {
+          name = 'Mahallu Contributor';
+        }
+
+        if (payment.paidById) {
+          payment.paidById = {
+            ...(typeof payment.paidById === 'object' ? payment.paidById : {}),
+            name: name,
+            phone: payment.metadata?.donorPhone || payment.paidById?.phone,
+          };
         }
         return r;
       }),
@@ -44,18 +61,35 @@ export class ReceiptService {
     const payment = receipt.paymentId;
     if (payment) {
       const { User } = await import('../models/User');
-      let name = payment.paidForId?.name || payment.paidById?.name;
-      if (!name) {
-        if (payment.metadata?.donorName) {
-          name = payment.metadata.donorName;
-        } else if (payment.paidById) {
-          const u = await User.findById(payment.paidById).select('name phone').lean();
-          if (u) name = u.name;
-        }
+      let name = '';
+      if (payment.metadata?.donorName) {
+        name = payment.metadata.donorName;
+      } else if (receipt.metadata?.donorName) {
+        name = receipt.metadata.donorName;
+      } else if (payment.description?.includes('(Donor: ')) {
+        const match = payment.description.match(/\(Donor:\s*([^,)]+)/);
+        if (match) name = match[1].trim();
+      } else if (payment.metadata?.name) {
+        name = payment.metadata.name;
+      } else if (payment.paidForId?.name && !payment.metadata?.isExternalDonor) {
+        name = payment.paidForId.name;
+      } else if (payment.paidById?.name && !payment.metadata?.isExternalDonor) {
+        name = payment.paidById.name;
+      } else if (payment.paidById) {
+        const u = await User.findById(payment.paidById).select('name phone').lean();
+        if (u) name = u.name;
       }
 
-      if (name && payment.paidById && !payment.paidById.name) {
-        payment.paidById = { ...(typeof payment.paidById === 'object' ? payment.paidById : {}), name };
+      if (!name) {
+        name = 'Mahallu Contributor';
+      }
+
+      if (payment.paidById) {
+        payment.paidById = {
+          ...(typeof payment.paidById === 'object' ? payment.paidById : {}),
+          name: name,
+          phone: payment.metadata?.donorPhone || payment.paidById?.phone,
+        };
       }
     }
     return receipt;
