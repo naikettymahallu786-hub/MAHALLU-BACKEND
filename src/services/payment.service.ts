@@ -178,32 +178,67 @@ export class PaymentService {
     }
 
     const payments = await PaymentRepository.findFilteredWithPopulate(filter);
+    const { User } = await import('../models/User');
+    const { Member } = await import('../models/Member');
 
-    const paymentItems = payments.map((p: any) => {
-      const payer = p.paidById;
-      const receipt = p.receiptId;
-      const rawStatus = String(p.status || '').toLowerCase();
-      const normalizedStatus =
-        rawStatus === 'success' || rawStatus === 'paid' || rawStatus === 'completed'
-          ? 'completed'
-          : rawStatus === 'failed'
-          ? 'failed'
-          : 'pending';
+    const paymentItems = await Promise.all(
+      payments.map(async (p: any) => {
+        let payer = p.paidById;
+        let name = payer?.name || p.paidForId?.name;
+        let phone = payer?.phone || p.paidForId?.phone;
 
-      return {
-        _id: p._id,
-        paymentNo: p.paymentNo,
-        receiptNo: receipt?.receiptNo || 'N/A',
-        payerName: payer?.name || 'N/A',
-        payerPhone: payer?.phone || 'N/A',
-        category: p.type,
-        amount: p.amount || 0,
-        gateway: p.gateway,
-        status: normalizedStatus,
-        description: p.description || '',
-        createdAt: p.createdAt,
-      };
-    });
+        if (!name) {
+          if (p.metadata?.donorName) {
+            name = p.metadata.donorName;
+            phone = p.metadata.donorPhone || phone;
+          } else if (p.metadata?.name) {
+            name = p.metadata.name;
+            phone = p.metadata.phone || phone;
+          } else if (p.paidById) {
+            const u = await User.findById(p.paidById).select('name phone memberId').lean();
+            if (u) {
+              name = u.name;
+              phone = u.phone || phone;
+              if (u.memberId && !name) {
+                const m = await Member.findById(u.memberId).select('name phone').lean();
+                if (m) {
+                  name = m.name;
+                  phone = m.phone || phone;
+                }
+              }
+            }
+          }
+        }
+
+        const receipt = p.receiptId;
+        const rawStatus = String(p.status || '').toLowerCase();
+        const normalizedStatus =
+          rawStatus === 'success' || rawStatus === 'paid' || rawStatus === 'completed'
+            ? 'completed'
+            : rawStatus === 'failed'
+            ? 'failed'
+            : 'pending';
+
+        return {
+          _id: p._id,
+          paymentNo: p.paymentNo,
+          receiptNo: receipt?.receiptNo || 'N/A',
+          payerName: name || 'Anonymous Donor',
+          headName: name || 'Anonymous Donor',
+          donorName: name || 'Anonymous Donor',
+          payerPhone: phone || 'N/A',
+          phone: phone || 'N/A',
+          category: p.metadata?.category || p.type,
+          amount: p.amount || 0,
+          gateway: p.gateway,
+          status: normalizedStatus,
+          description: p.description || '',
+          metadata: p.metadata,
+          paidById: payer ? { ...payer, name: name || payer.name } : (name ? { name, phone } : undefined),
+          createdAt: p.createdAt,
+        };
+      }),
+    );
 
     // Include Unpaid / Overdue Family Recurring Dues
     const shouldIncludeDues =
