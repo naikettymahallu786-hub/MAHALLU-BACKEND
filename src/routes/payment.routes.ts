@@ -5,11 +5,14 @@ import { PaymentController } from '../controllers/payment.controller';
 
 const router = Router();
 
-// Public Checkout UI Page for Mobile Browser
+// Public Checkout UI Page for Mobile Browser (Supports Razorpay and Cashfree)
 router.get('/checkout', PaymentController.checkout);
+router.get('/cashfree-checkout', PaymentController.cashfreeCheckout);
+router.get('/cashfree-return', PaymentController.cashfreeReturn);
 
 // Verify payment signature
 router.post('/verify', PaymentController.verify);
+router.post('/cashfree-verify', PaymentController.verifyCashfree);
 
 // Authenticated Routes
 router.use(authenticate);

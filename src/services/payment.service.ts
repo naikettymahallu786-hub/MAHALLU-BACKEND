@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import axios from 'axios';
 import Razorpay from 'razorpay';
 import { AppError } from '../middleware/errorHandler';
 import { PaymentRepository } from '../repositories/payment.repository';
@@ -52,6 +53,54 @@ export class PaymentService {
     }
 
     return payment;
+  }
+
+  static async verifyCashfreeOrder(orderId: string, paymentId?: string) {
+    const cfHeaders = {
+      'x-client-id': process.env.CASHFREE_APP_ID || 'TEST430329ae80e0f32e41a393d78b923034',
+      'x-client-secret': process.env.CASHFREE_SECRET_KEY || 'TESTaf195616268bd6202eeb3bf8dc458956e7192a85',
+      'x-api-version': '2023-08-01',
+    };
+    const cfEnv = process.env.CASHFREE_ENV || 'sandbox';
+    const cfBaseUrl = cfEnv === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+
+    const cfRes = await axios.get(`${cfBaseUrl}/orders/${orderId}`, { headers: cfHeaders });
+    const cfData = cfRes.data;
+
+    let payment: any = null;
+    if (paymentId) {
+      const { Payment } = await import('../models/Payment');
+      payment = await Payment.findById(paymentId);
+    }
+    if (!payment) {
+      const { Payment } = await import('../models/Payment');
+      payment = await Payment.findOne({ gatewayOrderId: orderId });
+    }
+
+    if (cfData.order_status === 'PAID') {
+      if (payment && payment.status !== PaymentStatus.SUCCESS) {
+        payment = await PaymentRepository.findByIdAndUpdateStatus(payment._id, {
+          status: PaymentStatus.SUCCESS,
+          gatewayPaymentId: String(cfData.cf_order_id || orderId),
+          gatewayOrderId: orderId,
+        });
+
+        if (payment) {
+          const count = await PaymentRepository.countReceipts(payment.tenantId);
+          const receiptNo = generateSequentialId('RCP', count, { padWidth: 6 });
+          const receipt = await PaymentRepository.createReceipt({
+            tenantId: payment.tenantId,
+            receiptNo,
+            paymentId: payment._id,
+          });
+          await PaymentRepository.setPaymentReceiptId(payment._id, receipt._id);
+          await processPaymentDues(payment);
+        }
+      }
+      return { success: true, status: 'PAID', payment, cfData };
+    }
+
+    return { success: false, status: cfData.order_status, payment, cfData };
   }
 
   static async getFinanceReport(
@@ -454,6 +503,64 @@ export class PaymentService {
       await processPaymentDues(payment);
 
       return { immediate: true as const, payment, receipt };
+    }
+
+    if (gateway === 'cashfree') {
+      const orderId = `cf_ord_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const cfHeaders = {
+        'x-client-id': process.env.CASHFREE_APP_ID || 'TEST430329ae80e0f32e41a393d78b923034',
+        'x-client-secret': process.env.CASHFREE_SECRET_KEY || 'TESTaf195616268bd6202eeb3bf8dc458956e7192a85',
+        'x-api-version': '2023-08-01',
+        'Content-Type': 'application/json',
+      };
+      const cfEnv = process.env.CASHFREE_ENV || 'sandbox';
+      const cfBaseUrl = cfEnv === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+
+      const backendUrl = process.env.BACKEND_URL || 'https://mahallu-backend-cv55.onrender.com';
+
+      const cleanPhone = donorInfo.donorPhone
+        ? donorInfo.donorPhone.replace(/\D/g, '').slice(-10)
+        : '9876543210';
+
+      const cfBody = {
+        order_id: orderId,
+        order_amount: Number(amount),
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: String(userId || 'cust_guest').replace(/[^a-zA-Z0-9_-]/g, '_'),
+          customer_name: donorInfo.donorName || 'Mahallu Donor',
+          customer_email: donorInfo.donorEmail || 'donor@mahallu.app',
+          customer_phone: cleanPhone.length === 10 ? cleanPhone : '9876543210',
+        },
+        order_meta: {
+          return_url: `${backendUrl}/api/v1/payments/cashfree-return?order_id={order_id}&paymentId={payment_id}`,
+          notify_url: `${backendUrl}/api/v1/payments/cashfree-webhook`,
+        },
+        order_note: description || 'Mahallu Payment',
+      };
+
+      const cfRes = await axios.post(`${cfBaseUrl}/orders`, cfBody, { headers: cfHeaders });
+      const cfData = cfRes.data;
+
+      const payment = await PaymentRepository.createPayment({
+        tenantId,
+        paymentNo,
+        type,
+        amount,
+        paidById: finalPaidById,
+        paidForId: finalPaidForId,
+        gateway: 'cashfree',
+        gatewayOrderId: cfData.order_id || orderId,
+        status: 'pending',
+        description,
+        metadata: {
+          ...donorInfo,
+          cf_order_id: cfData.cf_order_id,
+          payment_session_id: cfData.payment_session_id,
+        },
+      });
+
+      return { immediate: false as const, order: cfData, payment };
     }
 
     const order = await razorpay.orders.create({

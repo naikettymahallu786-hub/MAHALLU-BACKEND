@@ -179,7 +179,11 @@ export class MobileGeneralRepository {
   }
 
   static async findEvents(filter: Record<string, unknown>, sortDir: 1 | -1) {
-    return Event.find(filter).sort({ date: sortDir }).limit(20).lean();
+    return Event.find(filter)
+      .populate('committeeMembers.memberId', 'name photo phone')
+      .sort({ date: sortDir })
+      .limit(50)
+      .lean();
   }
 
   static async findAnnouncements(tenantId: string) {
