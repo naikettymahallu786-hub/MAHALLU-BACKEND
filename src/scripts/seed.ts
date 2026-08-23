@@ -154,9 +154,9 @@ async function seed() {
 
   logger.info('🎉 Database reset successfully with ZERO dummy members/families!');
   logger.info('📋 Admin Login Credentials:');
-  logger.info('   Admin Portal:   admin@mahallu.app / Admin@123456');
-  logger.info('   Madrasa Admin:  madrasa.admin@mahallu.app / Madrasa@123456');
-  logger.info('   Sadar Mualim:   sadar@mahallu.app / Sadar@123456');
+  logger.info(`   Admin Portal:   ${superAdmin.email} / ${process.env.SEED_ADMIN_PASSWORD || 'Admin@123456'}`);
+  logger.info(`   Madrasa Admin:  ${madrasaAdmin.email} / Madrasa@123456`);
+  logger.info(`   Sadar Mualim:   ${sadarUser.email} / Sadar@123456`);
 
   await mongoose.disconnect();
   process.exit(0);
