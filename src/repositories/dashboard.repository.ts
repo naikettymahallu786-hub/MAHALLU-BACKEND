@@ -62,17 +62,48 @@ export class DashboardRepository {
   }
 
   static async sumMonthlyDonations(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
-    return Donation.aggregate([
-      { $match: { tenantId, createdAt: { $gte: monthStart, $lte: monthEnd } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } },
+    const [paymentDonations, donationDocs] = await Promise.all([
+      Payment.aggregate([
+        {
+          $match: {
+            tenantId,
+            type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat'] },
+            status: PaymentStatus.SUCCESS,
+            createdAt: { $gte: monthStart, $lte: monthEnd },
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Donation.aggregate([
+        { $match: { tenantId, createdAt: { $gte: monthStart, $lte: monthEnd } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
     ]);
+
+    const total = (paymentDonations[0]?.total || 0) + (donationDocs[0]?.total || 0);
+    return [{ total }];
   }
 
   static async sumZakatCollected(tenantId: mongoose.Types.ObjectId) {
-    return Payment.aggregate([
-      { $match: { tenantId, type: PaymentType.ZAKAT, status: PaymentStatus.SUCCESS } },
-      { $group: { _id: null, total: { $sum: '$amount' } } },
+    const [paymentDonations, donationDocs] = await Promise.all([
+      Payment.aggregate([
+        {
+          $match: {
+            tenantId,
+            type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat'] },
+            status: PaymentStatus.SUCCESS,
+          },
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Donation.aggregate([
+        { $match: { tenantId } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
     ]);
+
+    const total = (paymentDonations[0]?.total || 0) + (donationDocs[0]?.total || 0);
+    return [{ total }];
   }
 
   static async sumMonthlyIncomeTransactions(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
