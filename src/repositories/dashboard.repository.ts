@@ -9,31 +9,34 @@ import { Attendance } from '../models/Attendance';
 import { Transaction } from '../models/Transaction';
 import { PaymentType, PaymentStatus } from "../types";
 
+const SUCCESS_STATUSES = ['completed', 'success', 'paid', 'COMPLETED', 'SUCCESS', 'PAID', PaymentStatus.SUCCESS];
+
 export class DashboardRepository {
   static async countFamilies(tenantId: mongoose.Types.ObjectId) {
-    return Family.countDocuments({ tenantId, isDeleted: { $ne: true } });
+    return Family.countDocuments({ tenantId: { $in: [tenantId, String(tenantId)] }, isDeleted: { $ne: true } });
   }
 
   static async countActiveMembers(tenantId: mongoose.Types.ObjectId) {
-    return Member.countDocuments({ tenantId, status: 'active', isDeleted: { $ne: true } });
+    return Member.countDocuments({ tenantId: { $in: [tenantId, String(tenantId)] }, status: 'active', isDeleted: { $ne: true } });
   }
 
   static async countActiveStudents(tenantId: mongoose.Types.ObjectId) {
-    return Student.countDocuments({ tenantId, status: 'active' });
+    return Student.countDocuments({ tenantId: { $in: [tenantId, String(tenantId)] }, status: 'active' });
   }
 
   static async countActiveTeachers(tenantId: mongoose.Types.ObjectId) {
-    return Teacher.countDocuments({ tenantId, status: 'active' });
+    return Teacher.countDocuments({ tenantId: { $in: [tenantId, String(tenantId)] }, status: 'active' });
   }
 
   static async sumMonthlyIncomePayments(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
+    const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
     return Payment.aggregate([
       {
         $match: {
-          tenantId,
-          status: PaymentStatus.SUCCESS,
+          tenantId: tIdMatch,
+          status: { $in: SUCCESS_STATUSES },
+          isDeleted: { $ne: true },
           createdAt: { $gte: monthStart, $lte: monthEnd },
-          type: { $in: [PaymentType.SUBSCRIPTION, PaymentType.DONATION, PaymentType.RENTAL, PaymentType.ZAKAT] },
         },
       },
       { $group: { _id: null, total: { $sum: '$amount' } } },
@@ -41,13 +44,15 @@ export class DashboardRepository {
   }
 
   static async sumMonthlyExpensePayments(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
+    const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
     return Payment.aggregate([
       {
         $match: {
-          tenantId,
-          status: PaymentStatus.SUCCESS,
+          tenantId: tIdMatch,
+          status: { $in: SUCCESS_STATUSES },
+          isDeleted: { $ne: true },
           createdAt: { $gte: monthStart, $lte: monthEnd },
-          type: { $in: [PaymentType.SALARY, PaymentType.MAINTENANCE] },
+          type: { $in: [PaymentType.SALARY, PaymentType.MAINTENANCE, 'salary', 'maintenance', 'expense', 'EXPENSE'] },
         },
       },
       { $group: { _id: null, total: { $sum: '$amount' } } },
@@ -55,27 +60,33 @@ export class DashboardRepository {
   }
 
   static async sumActiveStudentFeeBalances(tenantId: mongoose.Types.ObjectId) {
+    const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
     return Student.aggregate([
-      { $match: { tenantId, status: 'active' } },
+      { $match: { tenantId: tIdMatch, status: 'active' } },
       { $group: { _id: null, total: { $sum: '$feeBalance' } } },
     ]);
   }
 
   static async sumMonthlyDonations(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
+    const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
     const [paymentDonations, donationDocs] = await Promise.all([
       Payment.aggregate([
         {
           $match: {
-            tenantId,
-            type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat'] },
-            status: PaymentStatus.SUCCESS,
+            tenantId: tIdMatch,
+            status: { $in: SUCCESS_STATUSES },
+            isDeleted: { $ne: true },
             createdAt: { $gte: monthStart, $lte: monthEnd },
+            $or: [
+              { type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat', 'General Sadaqah', 'sadaqah'] } },
+              { description: { $regex: /sadaqah|donation|zakat|maintenance|relief|fund/i } },
+            ],
           },
         },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       Donation.aggregate([
-        { $match: { tenantId, createdAt: { $gte: monthStart, $lte: monthEnd } } },
+        { $match: { tenantId: tIdMatch, createdAt: { $gte: monthStart, $lte: monthEnd }, isDeleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
     ]);
@@ -85,19 +96,24 @@ export class DashboardRepository {
   }
 
   static async sumZakatCollected(tenantId: mongoose.Types.ObjectId) {
+    const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
     const [paymentDonations, donationDocs] = await Promise.all([
       Payment.aggregate([
         {
           $match: {
-            tenantId,
-            type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat'] },
-            status: PaymentStatus.SUCCESS,
+            tenantId: tIdMatch,
+            status: { $in: SUCCESS_STATUSES },
+            isDeleted: { $ne: true },
+            $or: [
+              { type: { $in: [PaymentType.DONATION, 'donation', PaymentType.ZAKAT, 'zakat', 'General Sadaqah', 'sadaqah'] } },
+              { description: { $regex: /sadaqah|donation|zakat|maintenance|relief|fund/i } },
+            ],
           },
         },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
       Donation.aggregate([
-        { $match: { tenantId } },
+        { $match: { tenantId: tIdMatch, isDeleted: { $ne: true } } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
     ]);
@@ -107,8 +123,9 @@ export class DashboardRepository {
   }
 
   static async sumMonthlyIncomeTransactions(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
+    const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
     return Transaction.aggregate([
-      { $match: { tenantId, type: 'INCOME', date: { $gte: monthStart, $lte: monthEnd } } },
+      { $match: { tenantId: tIdMatch, type: 'INCOME', date: { $gte: monthStart, $lte: monthEnd } } },
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ]);
   }
