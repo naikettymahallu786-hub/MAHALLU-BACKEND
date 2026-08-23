@@ -68,12 +68,13 @@ export class PaymentService {
     const cfData = cfRes.data;
 
     let payment: any = null;
-    if (paymentId) {
-      const { Payment } = await import('../models/Payment');
+    const { Payment } = await import('../models/Payment');
+    const mongoose = await import('mongoose');
+
+    if (paymentId && mongoose.Types.ObjectId.isValid(paymentId)) {
       payment = await Payment.findById(paymentId);
     }
     if (!payment) {
-      const { Payment } = await import('../models/Payment');
       payment = await Payment.findOne({ gatewayOrderId: orderId });
     }
 
