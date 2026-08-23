@@ -19,8 +19,21 @@ export class ReportService {
     return ReportRepository.aggregatePaymentsByType(filter);
   }
 
-  static async exportFinancial(tenantId: string): Promise<CsvResult> {
-    const payments = await ReportRepository.findAllPaymentsWithPayerNames(tenantId);
+  static async exportFinancial(
+    tenantId: string,
+    query: { search?: string; startDate?: string; endDate?: string; month?: string; year?: string; format?: string } = {},
+  ): Promise<CsvResult | JsonResult> {
+    const { search, startDate, endDate, month, year, format = 'csv' } = query;
+    const filter: Record<string, any> = { tenantId, ...buildDateQuery(startDate, endDate, month, year, 'createdAt') };
+
+    if (search) {
+      const searchRegex = new RegExp(String(search).trim(), 'i');
+      filter.$or = [{ paymentNo: searchRegex }, { description: searchRegex }, { gateway: searchRegex }];
+    }
+
+    const payments = await ReportRepository.findAllPaymentsWithPayerNames(filter);
+    if (format === 'json') return { format: 'json', data: payments };
+
     const headers = ['Payment No', 'Date', 'Type', 'Amount', 'Gateway', 'Payment ID', 'Order ID', 'Status', 'Description', 'Paid For', 'Paid By'];
     const rows = payments.map((p: any) => [
       p.paymentNo || '',
@@ -38,8 +51,25 @@ export class ReportService {
     return { format: 'csv', content: buildCSV(headers, rows), filename: 'financial_report.csv' };
   }
 
-  static async exportMembers(tenantId: string): Promise<CsvResult> {
-    const members = await ReportRepository.findAllMembersWithFamily(tenantId);
+  static async exportMembers(
+    tenantId: string,
+    query: { search?: string; status?: string; format?: string } = {},
+  ): Promise<CsvResult | JsonResult> {
+    const { search, status, format = 'csv' } = query;
+    const filter: Record<string, any> = { tenantId, isDeleted: { $ne: true } };
+
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(String(search).trim(), 'i');
+      filter.$or = [{ name: searchRegex }, { memberId: searchRegex }, { phone: searchRegex }, { email: searchRegex }];
+    }
+
+    const members = await ReportRepository.findAllMembersWithFamily(filter);
+    if (format === 'json') return { format: 'json', data: members };
+
     const headers = ['Name', 'Member ID', 'Family Code', 'Ward No', 'Address', 'Phone', 'Email', 'Gender', 'DOB', 'Blood Group', 'Status'];
     const rows = members.map((m: any) => [
       m.name || '',
@@ -57,8 +87,25 @@ export class ReportService {
     return { format: 'csv', content: buildCSV(headers, rows), filename: 'member_census_report.csv' };
   }
 
-  static async exportAcademic(tenantId: string): Promise<CsvResult> {
-    const students = await ReportRepository.findAllStudentsWithDetails(tenantId);
+  static async exportAcademic(
+    tenantId: string,
+    query: { search?: string; status?: string; format?: string } = {},
+  ): Promise<CsvResult | JsonResult> {
+    const { search, status, format = 'csv' } = query;
+    const filter: Record<string, any> = { tenantId };
+
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(String(search).trim(), 'i');
+      filter.$or = [{ name: searchRegex }, { admissionNo: searchRegex }];
+    }
+
+    const students = await ReportRepository.findAllStudentsWithDetails(filter);
+    if (format === 'json') return { format: 'json', data: students };
+
     const headers = ['Student Name', 'Admission No', 'Class', 'Gender', 'DOB', 'Parent Name', 'Parent Phone', 'Status'];
     const rows = students.map((s: any) => [
       s.memberId?.name || s.name || '',
@@ -73,8 +120,25 @@ export class ReportService {
     return { format: 'csv', content: buildCSV(headers, rows), filename: 'academic_progress_report.csv' };
   }
 
-  static async exportIncomeExpense(tenantId: string): Promise<CsvResult> {
-    const transactions = await ReportRepository.findAllTransactions(tenantId);
+  static async exportIncomeExpense(
+    tenantId: string,
+    query: { search?: string; type?: string; startDate?: string; endDate?: string; month?: string; year?: string; format?: string } = {},
+  ): Promise<CsvResult | JsonResult> {
+    const { search, type, startDate, endDate, month, year, format = 'csv' } = query;
+    const filter: Record<string, any> = { tenantId, ...buildDateQuery(startDate, endDate, month, year, 'date') };
+
+    if (type && type !== 'all') {
+      filter.type = type.toUpperCase();
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(String(search).trim(), 'i');
+      filter.$or = [{ description: searchRegex }, { category: searchRegex }, { referenceNo: searchRegex }];
+    }
+
+    const transactions = await ReportRepository.findAllTransactions(filter);
+    if (format === 'json') return { format: 'json', data: transactions };
+
     const headers = ['Date', 'Type', 'Category', 'Amount', 'Description', 'Reference No'];
     const rows = transactions.map((t: any) => [
       t.date ? new Date(t.date).toLocaleDateString() : '',
@@ -87,8 +151,28 @@ export class ReportService {
     return { format: 'csv', content: buildCSV(headers, rows), filename: 'income_expense_report.csv' };
   }
 
-  static async exportPayments(tenantId: string): Promise<CsvResult> {
-    const payments = await ReportRepository.findAllPaymentsWithPayerNames(tenantId);
+  static async exportPayments(
+    tenantId: string,
+    query: { search?: string; status?: string; type?: string; startDate?: string; endDate?: string; month?: string; year?: string; format?: string } = {},
+  ): Promise<CsvResult | JsonResult> {
+    const { search, status, type, startDate, endDate, month, year, format = 'csv' } = query;
+    const filter: Record<string, any> = { tenantId, ...buildDateQuery(startDate, endDate, month, year, 'createdAt') };
+
+    if (type && type !== 'all') {
+      filter.type = type;
+    }
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(String(search).trim(), 'i');
+      filter.$or = [{ paymentNo: searchRegex }, { description: searchRegex }, { gateway: searchRegex }];
+    }
+
+    const payments = await ReportRepository.findAllPaymentsWithPayerNames(filter);
+    if (format === 'json') return { format: 'json', data: payments };
+
     const headers = ['Payment No', 'Date', 'Type', 'Amount', 'Gateway', 'Payment ID', 'Order ID', 'Status', 'Description', 'Paid For', 'Paid By'];
     const rows = payments.map((p: any) => [
       p.paymentNo || '',

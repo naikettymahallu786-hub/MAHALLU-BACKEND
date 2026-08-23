@@ -25,7 +25,7 @@ export class ReportController {
 
   static async exportFinancial(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      sendResult(res, await ReportService.exportFinancial(req.user!.tenantId));
+      sendResult(res, await ReportService.exportFinancial(req.user!.tenantId, req.query as any));
     } catch (error) {
       next(error);
     }
@@ -33,7 +33,7 @@ export class ReportController {
 
   static async exportMembers(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      sendResult(res, await ReportService.exportMembers(req.user!.tenantId));
+      sendResult(res, await ReportService.exportMembers(req.user!.tenantId, req.query as any));
     } catch (error) {
       next(error);
     }
@@ -41,7 +41,7 @@ export class ReportController {
 
   static async exportAcademic(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      sendResult(res, await ReportService.exportAcademic(req.user!.tenantId));
+      sendResult(res, await ReportService.exportAcademic(req.user!.tenantId, req.query as any));
     } catch (error) {
       next(error);
     }
@@ -49,7 +49,7 @@ export class ReportController {
 
   static async exportIncomeExpense(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      sendResult(res, await ReportService.exportIncomeExpense(req.user!.tenantId));
+      sendResult(res, await ReportService.exportIncomeExpense(req.user!.tenantId, req.query as any));
     } catch (error) {
       next(error);
     }
@@ -57,7 +57,7 @@ export class ReportController {
 
   static async exportPayments(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      sendResult(res, await ReportService.exportPayments(req.user!.tenantId));
+      sendResult(res, await ReportService.exportPayments(req.user!.tenantId, req.query as any));
     } catch (error) {
       next(error);
     }

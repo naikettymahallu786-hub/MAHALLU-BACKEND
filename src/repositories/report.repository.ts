@@ -7,26 +7,26 @@ export class ReportRepository {
     ]);
   }
 
-  static async findAllPaymentsWithPayerNames(tenantId: string) {
+  static async findAllPaymentsWithPayerNames(filter: Record<string, unknown>) {
     const { Payment } = await import('../models/Payment');
-    return Payment.find({ tenantId })
-      .populate({ path: 'paidForId', select: 'name', options: { strictPopulate: false } })
-      .populate({ path: 'paidById', select: 'name', options: { strictPopulate: false } })
+    return Payment.find(filter)
+      .populate({ path: 'paidForId', select: 'name phone', options: { strictPopulate: false } })
+      .populate({ path: 'paidById', select: 'name phone', options: { strictPopulate: false } })
       .sort({ createdAt: -1 })
       .lean();
   }
 
-  static async findAllMembersWithFamily(tenantId: string) {
+  static async findAllMembersWithFamily(filter: Record<string, unknown>) {
     const { Member } = await import('../models/Member');
-    return Member.find({ tenantId })
+    return Member.find(filter)
       .populate({ path: 'familyId', select: 'familyCode address wardNo', options: { strictPopulate: false } })
       .sort({ name: 1 })
       .lean();
   }
 
-  static async findAllStudentsWithDetails(tenantId: string) {
+  static async findAllStudentsWithDetails(filter: Record<string, unknown>) {
     const { Student } = await import('../models/Student');
-    return Student.find({ tenantId })
+    return Student.find(filter)
       .populate({ path: 'memberId', select: 'name phone gender dateOfBirth', options: { strictPopulate: false } })
       .populate({ path: 'classId', select: 'name', options: { strictPopulate: false } })
       .populate({ path: 'guardianId', select: 'name phone', options: { strictPopulate: false } })
@@ -34,9 +34,9 @@ export class ReportRepository {
       .lean();
   }
 
-  static async findAllTransactions(tenantId: string) {
+  static async findAllTransactions(filter: Record<string, unknown>) {
     const { Transaction } = await import('../models/Transaction');
-    return Transaction.find({ tenantId }).sort({ date: -1 }).lean();
+    return Transaction.find(filter).sort({ date: -1 }).lean();
   }
 
   static async findNikahs(filter: Record<string, unknown>) {
