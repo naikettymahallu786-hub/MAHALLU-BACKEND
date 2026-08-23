@@ -184,30 +184,46 @@ export class PaymentService {
     const paymentItems = await Promise.all(
       payments.map(async (p: any) => {
         let payer = p.paidById;
-        let name = payer?.name || p.paidForId?.name;
-        let phone = payer?.phone || p.paidForId?.phone;
+        let name = '';
+        let phone = '';
 
-        if (!name) {
-          if (p.metadata?.donorName) {
-            name = p.metadata.donorName;
-            phone = p.metadata.donorPhone || phone;
-          } else if (p.metadata?.name) {
-            name = p.metadata.name;
-            phone = p.metadata.phone || phone;
-          } else if (p.paidById) {
-            const u = await User.findById(p.paidById).select('name phone memberId').lean();
-            if (u) {
-              name = u.name;
-              phone = u.phone || phone;
-              if (u.memberId && !name) {
-                const m = await Member.findById(u.memberId).select('name phone').lean();
-                if (m) {
-                  name = m.name;
-                  phone = m.phone || phone;
-                }
+        // 1. Explicit external donor or metadata donorName / phone
+        if (p.metadata?.donorName) {
+          name = p.metadata.donorName;
+          phone = p.metadata.donorPhone || '';
+        } else if (p.description?.includes('(Donor: ')) {
+          const match = p.description.match(/\(Donor:\s*([^,)]+)/);
+          if (match) name = match[1].trim();
+          phone = p.metadata?.donorPhone || '';
+        } else if (p.metadata?.name) {
+          name = p.metadata.name;
+          phone = p.metadata.phone || '';
+        }
+
+        // 2. Member payer (only if not an external non-family donor)
+        if (!name && !p.metadata?.isExternalDonor) {
+          name = payer?.name || p.paidForId?.name || '';
+          phone = payer?.phone || p.paidForId?.phone || '';
+        }
+
+        // 3. User lookup if still missing
+        if (!name && p.paidById && !p.metadata?.isExternalDonor) {
+          const u = await User.findById(p.paidById).select('name phone memberId').lean();
+          if (u) {
+            name = u.name;
+            phone = u.phone || phone;
+            if (u.memberId && !name) {
+              const m = await Member.findById(u.memberId).select('name phone').lean();
+              if (m) {
+                name = m.name;
+                phone = m.phone || phone;
               }
             }
           }
+        }
+
+        if (!phone && p.metadata?.donorPhone) {
+          phone = p.metadata.donorPhone;
         }
 
         const receipt = p.receiptId;

@@ -134,12 +134,13 @@ export class ReceiptService {
     const targetId = extractId(paidForId) || payerId;
     const numAmount = Number(amount || 0);
 
+    const isExternal = Boolean(donorName) || !paidById;
     const meta: Record<string, any> = {};
     if (familyId) meta.familyId = familyId;
     if (category) meta.category = category;
     if (donorName) meta.donorName = donorName;
     if (donorPhone) meta.donorPhone = donorPhone;
-    if (!paidById && donorName) meta.isExternalDonor = true;
+    if (isExternal) meta.isExternalDonor = true;
 
     const payment = await ReceiptRepository.createPayment({
       tenantId,
