@@ -1,7 +1,10 @@
 import axios from 'axios';
+import QRCode from 'qrcode';
 import { PRAYER_TIMES_API } from "../config/constants";
 import { AppError } from '../middleware/errorHandler';
 import { MobileGeneralRepository as Repo } from '../repositories/mobileGeneral.repository';
+import { MemberRepository } from '../repositories/member.repository';
+import { generateSequentialId } from '../domain/idGenerator';
 import { cleanEventDescription } from '../domain/eventTemplates';
 import { calculateNextDueDate } from '../domain/billing';
 
@@ -126,6 +129,101 @@ export class MobileGeneralService {
     }
 
     return targetMember;
+  }
+
+  static async addMember(
+    userId: string,
+    tenantId: string,
+    body: {
+      name: string;
+      phone?: string;
+      gender?: string;
+      relationship?: string;
+      occupation?: string;
+      qualification?: string;
+      bloodGroup?: string;
+      dateOfBirth?: string;
+      aadhaarNumber?: string;
+    },
+  ) {
+    const user = await Repo.findUserMemberId(userId);
+    if (!user?.memberId) throw new AppError('Member account not found', 404);
+
+    const callerMember = await Repo.findMemberFamilyId(user.memberId);
+    if (!callerMember?.familyId) throw new AppError('Family not found', 404);
+
+    const { name, phone, gender = 'male', relationship = 'Member', occupation, qualification, bloodGroup, dateOfBirth, aadhaarNumber } = body;
+    if (!name?.trim()) throw new AppError('Member name is required', 400);
+
+    // Count members to generate sequential ID
+    const count = await MemberRepository.countMembersByTenant(tenantId);
+    const memberId = generateSequentialId('MHL', count, { padWidth: 4 });
+
+    // Generate QR code
+    const qrData = JSON.stringify({ memberId, tenantId, type: 'member' });
+    const qrCode = await QRCode.toDataURL(qrData);
+
+    const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
+
+    const newMember = await MemberRepository.createMember({
+      tenantId,
+      memberId,
+      name: name.trim(),
+      phone: phone?.trim() || (callerMember as any).phone || '0000000000',
+      gender,
+      relationship,
+      occupation: occupation?.trim(),
+      qualification: qualification?.trim(),
+      bloodGroup,
+      dateOfBirth: dob && !isNaN(dob.getTime()) ? dob : undefined,
+      aadhaarNumber: aadhaarNumber?.trim(),
+      familyId: callerMember.familyId,
+      status: 'active',
+      qrCode,
+    });
+
+    // Push into family members list
+    await MemberRepository.pushMemberIntoFamily(callerMember.familyId.toString(), tenantId, {
+      memberId: newMember._id,
+      relationship: relationship || 'Member',
+      isHead: false,
+    });
+
+    return newMember;
+  }
+
+  static async removeMember(userId: string, tenantId: string, targetMemberId: string) {
+    const user = await Repo.findUserMemberId(userId);
+    if (!user?.memberId) throw new AppError('Member account not found', 404);
+
+    const callerMember = await Repo.findMemberFamilyId(user.memberId);
+    if (!callerMember?.familyId) throw new AppError('Family not found', 404);
+
+    const targetMember = await Repo.findMemberDocByIdAndTenant(targetMemberId, tenantId);
+    if (!targetMember) throw new AppError('Member not found', 404);
+
+    if ((targetMember as any).familyId?.toString() !== callerMember.familyId.toString()) {
+      throw new AppError('Unauthorized: Member does not belong to your family', 403);
+    }
+
+    // Check if target is family head
+    const family = await Repo.findFamilyPlain(callerMember.familyId);
+    if (family && (family as any).headMemberId?.toString() === targetMemberId.toString()) {
+      throw new AppError('Cannot remove head of family. Please reassign the family head first.', 400);
+    }
+
+    // Pull from family
+    await MemberRepository.pullMemberFromFamily(callerMember.familyId.toString(), tenantId, targetMemberId);
+
+    // Soft delete member
+    await MemberRepository.softDeleteMemberById(targetMemberId, tenantId);
+
+    // If target member has user account, deactivate it
+    if ((targetMember as any).userId) {
+      await MemberRepository.deactivateUser((targetMember as any).userId);
+    }
+
+    return { message: 'Member removed from family successfully' };
   }
 
   static async getPayments(

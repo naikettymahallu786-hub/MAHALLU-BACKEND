@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface TransactionDocument extends Document {
   tenantId: mongoose.Types.ObjectId;
+  accountId?: mongoose.Types.ObjectId;
   type: 'INCOME' | 'EXPENSE';
   amount: number;
   category: string;
@@ -16,6 +17,7 @@ export interface TransactionDocument extends Document {
 const TransactionSchema = new Schema<TransactionDocument>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    accountId: { type: Schema.Types.ObjectId, ref: 'Account', index: true },
     type: { type: String, enum: ['INCOME', 'EXPENSE'], required: true },
     amount: { type: Number, required: true },
     category: { type: String, required: true },
