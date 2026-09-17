@@ -22,10 +22,22 @@ router.get('/me/family', MobileGeneralController.getFamily);
 router.put('/me/family', MobileGeneralController.updateFamily);
 
 // ──────────────────────────────────────────────────
+// POST /mobile/me/members
+// Add a new member to the logged-in user's family
+// ──────────────────────────────────────────────────
+router.post('/me/members', MobileGeneralController.addMember);
+
+// ──────────────────────────────────────────────────
 // PUT /mobile/me/members/:memberId
 // Update family member details by family head/member
 // ──────────────────────────────────────────────────
 router.put('/me/members/:memberId', MobileGeneralController.updateMember);
+
+// ──────────────────────────────────────────────────
+// DELETE /mobile/me/members/:memberId
+// Remove a member from the family
+// ──────────────────────────────────────────────────
+router.delete('/me/members/:memberId', MobileGeneralController.removeMember);
 
 // ──────────────────────────────────────────────────
 // GET /mobile/me/payments

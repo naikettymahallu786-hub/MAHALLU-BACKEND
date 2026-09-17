@@ -39,6 +39,24 @@ export class MobileGeneralController {
     }
   }
 
+  static async addMember(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const member = await MobileGeneralService.addMember(req.user!.userId, req.user!.tenantId, req.body);
+      res.status(201).json({ success: true, message: 'Member added to family successfully', data: member });
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  static async removeMember(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await MobileGeneralService.removeMember(req.user!.userId, req.user!.tenantId, req.params.memberId);
+      res.json({ success: true, message: result.message });
+    } catch (e) {
+      next(e);
+    }
+  }
+
   static async getPayments(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await MobileGeneralService.getPayments(req.user!.userId, req.user!.tenantId, req.query as any);

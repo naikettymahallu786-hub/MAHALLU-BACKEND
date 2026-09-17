@@ -61,10 +61,30 @@ export class DashboardRepository {
 
   static async sumActiveStudentFeeBalances(tenantId: mongoose.Types.ObjectId) {
     const tIdMatch = { $in: [new mongoose.Types.ObjectId(tenantId as any), String(tenantId)] };
-    return Student.aggregate([
-      { $match: { tenantId: tIdMatch, status: 'active' } },
-      { $group: { _id: null, total: { $sum: '$feeBalance' } } },
+    const [familyDues, studentDues, pendingPayments, pendingDonations] = await Promise.all([
+      Family.aggregate([
+        { $match: { tenantId: tIdMatch, isDeleted: { $ne: true }, outstandingBalance: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$outstandingBalance' } } },
+      ]),
+      Student.aggregate([
+        { $match: { tenantId: tIdMatch, status: 'active', feeBalance: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$feeBalance' } } },
+      ]),
+      Payment.aggregate([
+        { $match: { tenantId: tIdMatch, isDeleted: { $ne: true }, status: { $in: ['pending', 'unpaid', 'overdue', PaymentStatus.PENDING] } } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
+      Donation.aggregate([
+        { $match: { tenantId: tIdMatch, isDeleted: { $ne: true }, status: 'pending' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } },
+      ]),
     ]);
+
+    const famTotal = familyDues[0]?.total || 0;
+    const stuTotal = studentDues[0]?.total || 0;
+    const payTotal = pendingPayments[0]?.total || 0;
+    const donTotal = pendingDonations[0]?.total || 0;
+    return [{ _id: null, total: famTotal + stuTotal + payTotal + donTotal }];
   }
 
   static async sumMonthlyDonations(tenantId: mongoose.Types.ObjectId, monthStart: Date, monthEnd: Date) {
