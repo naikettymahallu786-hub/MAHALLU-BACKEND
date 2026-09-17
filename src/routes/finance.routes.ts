@@ -194,7 +194,7 @@ router.delete('/accounts/:id', authorize(PERMISSIONS.FINANCE_DELETE), async (req
 // GET /api/v1/finance/transactions - List transactions (supports accountId filter & year filter)
 router.get('/transactions', authorize(PERMISSIONS.FINANCE_VIEW), async (req: AuthRequest, res, next) => {
   try {
-    const { year, accountId, type, search } = req.query;
+    const { year, accountId, type, category, search } = req.query;
     const query: any = { tenantId: req.user!.tenantId };
 
     if (accountId) {
@@ -203,6 +203,10 @@ router.get('/transactions', authorize(PERMISSIONS.FINANCE_VIEW), async (req: Aut
 
     if (type && (type === 'INCOME' || type === 'EXPENSE')) {
       query.type = type;
+    }
+
+    if (category) {
+      query.category = category;
     }
 
     if (year) {
@@ -238,9 +242,22 @@ router.post('/transactions', authorize(PERMISSIONS.FINANCE_CREATE), async (req: 
     const tenantId = req.user!.tenantId;
     const { accountId, type, amount, category, date, description, referenceNo } = req.body;
 
-    if (!type || !amount || !category || !date || !description) {
-      throw new AppError('Missing required fields', 400);
+    if (!type || !amount || !date) {
+      throw new AppError('Missing required fields: type, amount, and date are required', 400);
     }
+
+    // Resolve category (optional for EXPENSE, defaults to 'General Expense')
+    const resolvedCategory = category?.trim() || (type === 'EXPENSE' ? 'General Expense' : 'General Income');
+
+    // Description is optional
+    const resolvedDescription = description?.trim() || '';
+
+    // Auto-generate referenceNo if missing
+    const resolvedRefNo = referenceNo?.trim() || (
+      type === 'INCOME'
+        ? `REC-INC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`
+        : `REC-EXP-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`
+    );
 
     // Resolve or fallback to default account if accountId is missing
     let targetAccountId = accountId;
@@ -269,10 +286,10 @@ router.post('/transactions', authorize(PERMISSIONS.FINANCE_CREATE), async (req: 
       accountId: targetAccountId,
       type,
       amount: numAmount,
-      category,
+      category: resolvedCategory,
       date: new Date(date),
-      description,
-      referenceNo,
+      description: resolvedDescription,
+      referenceNo: resolvedRefNo,
       recordedBy: req.user!.userId
     });
 
